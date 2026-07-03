@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-br" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Estratificação de Risco{% endblock %} · Estratificação de Risco</title>
+    <script>
+      // Aplica o tema antes da pintura para evitar flash. Dark é o padrão.
+      const savedTheme = localStorage.getItem("theme") || "dark";
+      document.documentElement.setAttribute("data-bs-theme", savedTheme);
+    </script>
+    <link href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260703-formulas') }}">
+  </head>
+  <body>
+    {% set ep = request.endpoint %}
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+          <button class="brand-mark" type="button" data-sidebar-toggle aria-label="Abrir ou fechar menu lateral">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>
+              <path d="M3.5 12.4h4l1.6-3.2 3 6 1.6-2.8h4.8"/>
+            </svg>
+          </button>
+          <span class="brand-text">
+            <strong>Estratificação</strong>
+            <small>de Risco</small>
+          </span>
+        </div>
+
+        <nav class="sidebar-nav">
+          <span class="nav-section">Operação</span>
+          <a class="nav-item {{ 'is-active' if ep == 'dashboard' }}" href="{{ url_for('dashboard') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.2"/><rect x="14" y="3" width="7" height="5" rx="1.2"/><rect x="14" y="12" width="7" height="9" rx="1.2"/><rect x="3" y="16" width="7" height="5" rx="1.2"/></svg>
+            <span>Dashboard</span>
+          </a>
+
+          <span class="nav-section">Pacientes</span>
+          <a class="nav-item {{ 'is-active' if ep in ['lista_cronicos','novo_cronico','editar_cronico'] }}" href="{{ url_for('lista_cronicos') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/><path d="M3.5 12.4h4l1.6-3.2 3 6 1.6-2.8h4.8"/></svg>
+            <span>Crônicos</span>
+          </a>
+          <a class="nav-item {{ 'is-active' if ep in ['lista_prevent','prevent'] }}" href="{{ url_for('lista_prevent') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.4h4l1.6-3.2 3 6 1.6-2.8h6.8"/><path d="M21 6.5a3.5 3.5 0 0 0-6-2.4A3.5 3.5 0 0 0 9 6.5"/></svg>
+            <span>Prevent</span>
+          </a>
+          <a class="nav-item {{ 'is-active' if ep in ['lista_gestantes','nova_gestante','editar_gestante'] }}" href="{{ url_for('lista_gestantes') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0-8.7 6.7 2 2 0 0 0 0 4.6A9 9 0 0 0 20.7 14.3a2 2 0 0 0 0-4.6A9 9 0 0 0 12 3Z"/><path d="M9 11.5h.01M15 11.5h.01M9.5 15.5c.6.5 1.5.8 2.5.8s1.9-.3 2.5-.8"/></svg>
+            <span>Gestantes</span>
+          </a>
+
+          <span class="nav-section">Análise</span>
+          <a class="nav-item {{ 'is-active' if ep == 'relatorios' }}" href="{{ url_for('relatorios') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5a1.5 1.5 0 0 0 1.5 1.5H21"/><rect x="7" y="11" width="3" height="6" rx="0.8"/><rect x="12" y="7" width="3" height="10" rx="0.8"/><rect x="17" y="13" width="3" height="4" rx="0.8"/></svg>
+            <span>Relatórios</span>
+          </a>
+
+          <span class="nav-section">Cadastros</span>
+          <a class="nav-item {{ 'is-active' if ep in ['lista_agentes','novo_agente','editar_agente','alternar_agente','excluir_agente'] }}" href="{{ url_for('lista_agentes') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Agentes (ACS)</span>
+          </a>
+          {% if current_user and current_user.is_admin %}
+          <a class="nav-item {{ 'is-active' if ep in ['lista_usuarios','novo_usuario','resetar_senha','alternar_papel','alternar_usuario','excluir_usuario'] }}" href="{{ url_for('lista_usuarios') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 11h-6"/><path d="M20 8v6"/></svg>
+            <span>Usuários</span>
+          </a>
+          <a class="nav-item {{ 'is-active' if ep == 'auditoria' }}" href="{{ url_for('auditoria') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
+            <span>Auditoria</span>
+          </a>
+          {% endif %}
+          <form method="post" action="{{ url_for('backup_banco') }}" class="nav-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+              <span>Backup</span>
+            </button>
+          </form>
+        </nav>
+
+        <div class="sidebar-foot">
+          {% if current_user %}
+          <div class="user-chip">
+            <span class="user-avatar" aria-hidden="true">{{ (current_user.nome or current_user.username)[:1]|upper }}</span>
+            <span class="user-meta">
+              <strong>{{ current_user.nome or current_user.username }}</strong>
+              <small>{{ "Administrador" if current_user.is_admin else "Usuário" }}</small>
+            </span>
+          </div>
+          <a class="nav-item {{ 'is-active' if ep == 'alterar_propria_senha' }}" href="{{ url_for('alterar_propria_senha') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Trocar senha</span>
+          </a>
+          {% endif %}
+          <form method="post" action="{{ url_for('logout') }}" class="nav-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="nav-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+              <span>Sair</span>
+            </button>
+          </form>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Alternar tema">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6.5 6.5 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            <span class="label-dark">Tema escuro</span>
+            <span class="label-light">Tema claro</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="sidebar-backdrop" data-sidebar-close></div>
+
+      <div class="app-main">
+        <header class="topbar">
+          <button class="icon-btn" type="button" data-sidebar-open aria-label="Abrir menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <a class="topbar-brand" href="{{ url_for('dashboard') }}">Estratificação de Risco</a>
+        </header>
+
+        <main class="content">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="toast-flash toast-{{ category }}" role="alert">
+                  <span class="toast-dot" aria-hidden="true"></span>
+                  <span class="toast-msg">{{ message }}</span>
+                  <button type="button" class="toast-close" data-flash-close aria-label="Fechar">&times;</button>
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+
+    <div class="modal fade app-confirm-modal" id="confirmModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <p class="modal-kicker">Confirmação necessária</p>
+              <h2 class="modal-title" id="confirmModalTitle">Confirmar ação</h2>
+            </div>
+            <button type="button" class="modal-close" data-bs-dismiss="modal" aria-label="Fechar">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="confirm-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 4.3 2.6 17.7A2.2 2.2 0 0 0 4.5 21h15a2.2 2.2 0 0 0 1.9-3.3L13.7 4.3a2 2 0 0 0-3.4 0Z"/></svg>
+            </div>
+            <p id="confirmModalMessage">Deseja continuar?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" data-confirm-submit>Remover</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='app.js', v='20260703-formulas') }}"></script>
+  </body>
+</html>

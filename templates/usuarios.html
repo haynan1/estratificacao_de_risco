@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Usuários{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Usuários</h1>
+    <p class="lead">Cada profissional com o próprio acesso — a auditoria registra quem fez cada ação.</p>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <section class="panel">
+      <div class="panel-head"><h2>Novo usuário</h2></div>
+      <form method="post" action="{{ url_for('novo_usuario') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label">Nome completo</label>
+          <input class="form-control" name="nome" placeholder="Ex.: Ana Enfermeira">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Usuário (login)</label>
+          <input class="form-control" name="username" required autocomplete="off" placeholder="Ex.: ana">
+        </div>
+        <div class="row g-3">
+          <div class="col-7">
+            <label class="form-label">Senha inicial</label>
+            <input class="form-control" type="password" name="senha" required minlength="8" placeholder="Mín. 8 caracteres">
+          </div>
+          <div class="col-5">
+            <label class="form-label">Papel</label>
+            <select class="form-select" name="papel">
+              <option value="padrao">Usuário</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+        </div>
+        <div class="d-grid mt-4">
+          <button class="btn btn-primary" type="submit">Criar usuário</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="col-lg-8">
+    <section class="table-card">
+      <div class="panel-head" style="padding: 1.1rem 1.35rem; margin: 0; border-bottom: 1px solid var(--border);">
+        <h2 style="font-size: 1rem; margin: 0;">Usuários cadastrados</h2>
+        <span class="count-pill">{{ usuarios|length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Usuário</th>
+              <th>Papel</th>
+              <th>Status</th>
+              <th class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for usuario in usuarios %}
+              <tr {% if not usuario.ativo %}style="opacity: 0.55;"{% endif %}>
+                <td>
+                  <strong>{{ usuario.nome or usuario.username }}</strong>
+                  <div class="alert-item-meta">@{{ usuario.username }}{% if usuario.id == current_user.id %} · você{% endif %}</div>
+                </td>
+                <td>
+                  {% if usuario.is_admin %}
+                    <span class="badge-risk risk-mid">Administrador</span>
+                  {% else %}
+                    <span class="badge-risk risk-none">Usuário</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if usuario.ativo %}
+                    <span class="badge-risk risk-low">Ativo</span>
+                  {% else %}
+                    <span class="badge-risk risk-none">Inativo</span>
+                  {% endif %}
+                </td>
+                <td class="text-end text-nowrap">
+                  <form class="d-inline" method="post" action="{{ url_for('alternar_papel', id=usuario.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "Rebaixar" if usuario.is_admin else "Promover" }}</button>
+                  </form>
+                  <form class="d-inline" method="post" action="{{ url_for('alternar_usuario', id=usuario.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "Desativar" if usuario.ativo else "Ativar" }}</button>
+                  </form>
+                  {% if usuario.id != current_user.id %}
+                    <form class="d-inline" method="post" action="{{ url_for('excluir_usuario', id=usuario.id) }}"
+                          data-confirm-form data-confirm-title="Remover usuário"
+                          data-confirm-message="Remover o acesso de “{{ usuario.username }}”? Esta ação não poderá ser desfeita.">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+                    </form>
+                  {% endif %}
+                  <details class="pw-reset">
+                    <summary>Redefinir senha</summary>
+                    <form method="post" action="{{ url_for('resetar_senha', id=usuario.id) }}" class="pw-reset-form">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input class="form-control form-control-sm" type="password" name="nova_senha" required minlength="8" placeholder="Nova senha (mín. 8)">
+                      <button class="btn btn-sm btn-primary" type="submit">Salvar</button>
+                    </form>
+                  </details>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

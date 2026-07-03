@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Agentes de Saúde{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Agentes de saúde (ACS)</h1>
+    <p class="lead">Cadastre uma vez e selecione nos formulários — sem redigitar.</p>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <section class="panel" id="form-agente">
+      <div class="panel-head">
+        <h2>{{ "Editar agente" if editar else "Novo agente" }}</h2>
+        {% if editar %}<a class="btn btn-sm btn-ghost" href="{{ url_for('lista_agentes') }}">Cancelar</a>{% endif %}
+      </div>
+      <form method="post" action="{{ url_for('editar_agente', id=editar.id) if editar else url_for('novo_agente') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label">Nome do agente</label>
+          <input class="form-control" name="nome" value="{{ editar.nome if editar else '' }}" required autofocus placeholder="Ex.: Maria Souza">
+        </div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label">Micro-área</label>
+            <input class="form-control" name="micro_area" value="{{ editar.micro_area or '' if editar else '' }}" placeholder="Ex.: 03">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Equipe / UBS</label>
+            <input class="form-control" name="equipe" value="{{ editar.equipe or '' if editar else '' }}" placeholder="Ex.: ESF 2">
+          </div>
+        </div>
+        <div class="d-grid mt-4">
+          <button class="btn btn-primary" type="submit">{{ "Salvar alterações" if editar else "Cadastrar agente" }}</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="col-lg-8">
+    <section class="table-card">
+      <div class="panel-head" style="padding: 1.1rem 1.35rem; margin: 0; border-bottom: 1px solid var(--border);">
+        <h2 style="font-size: 1rem; margin: 0;">Agentes cadastrados</h2>
+        <span class="count-pill">{{ agentes|length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Micro-área</th>
+              <th>Equipe</th>
+              <th>Vínculos</th>
+              <th>Status</th>
+              <th class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for agente in agentes %}
+              <tr {% if not agente.ativo %}style="opacity: 0.55;"{% endif %}>
+                <td><strong>{{ agente.nome }}</strong></td>
+                <td class="cell-numeric">{{ agente.micro_area or "—" }}</td>
+                <td>{{ agente.equipe or "—" }}</td>
+                <td class="cell-numeric">{{ usos.get(agente.nome, 0) }}</td>
+                <td>
+                  {% if agente.ativo %}
+                    <span class="badge-risk risk-low">Ativo</span>
+                  {% else %}
+                    <span class="badge-risk risk-none">Inativo</span>
+                  {% endif %}
+                </td>
+                <td class="text-end text-nowrap">
+                  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('lista_agentes', editar=agente.id) }}#form-agente">Editar</a>
+                  <form class="d-inline" method="post" action="{{ url_for('alternar_agente', id=agente.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "Desativar" if agente.ativo else "Ativar" }}</button>
+                  </form>
+                  <form class="d-inline" method="post" action="{{ url_for('excluir_agente', id=agente.id) }}"
+                        data-confirm-form
+                        data-confirm-title="Remover agente"
+                        data-confirm-message="{% if usos.get(agente.nome, 0) %}Este agente está vinculado a {{ usos.get(agente.nome) }} registro(s). Os registros manterão o nome, mas ele sairá do cadastro. Remover?{% else %}Remover este agente do cadastro?{% endif %}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="6">
+                  <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <strong>Nenhum agente cadastrado</strong>
+                    <span>Cadastre o primeiro ACS ao lado para começar.</span>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

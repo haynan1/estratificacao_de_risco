@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% macro risk_class(label) %}{% set l = (label or '')|lower %}{% if 'alto' in l %}risk-high{% elif 'habitual' in l or 'baixo' in l %}risk-low{% elif 'prevent' in l or 'intermedi' in l %}risk-mid{% else %}risk-none{% endif %}{% endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="lead">Painel operacional da estratificação de risco.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('nova_gestante') }}">Nova gestante</a>
+    <a class="btn btn-primary" href="{{ url_for('novo_cronico') }}">Novo crônico</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="metric is-brand">
+      <span class="metric-accent"></span>
+      <div class="metric-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+        Total de crônicos
+      </div>
+      <div class="metric-value">{{ total_cronicos }}</div>
+      <div class="metric-sub">{{ total_has }} HAS · {{ total_dm2 }} DM2</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="metric">
+      <span class="metric-accent"></span>
+      <div class="metric-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0-8.7 6.7 2 2 0 0 0 0 4.6A9 9 0 0 0 20.7 14.3a2 2 0 0 0 0-4.6A9 9 0 0 0 12 3Z"/></svg>
+        Total de gestantes
+      </div>
+      <div class="metric-value">{{ total_gestantes }}</div>
+      <div class="metric-sub">{{ gestantes_alto_risco }} em alto risco</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <a class="metric is-alert" href="{{ url_for('lista_prevent', status='pendente') }}" style="color: inherit;">
+      <span class="metric-accent"></span>
+      <div class="metric-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        Prevent pendente
+      </div>
+      <div class="metric-value">{{ prevent_pendente }}</div>
+      <div class="metric-sub">Pacientes aguardando escore →</div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="metric">
+      <span class="metric-accent"></span>
+      <div class="metric-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5a1.5 1.5 0 0 0 1.5 1.5H21"/><path d="M7 14l3-3 3 2 4-5"/></svg>
+        Registros monitorados
+      </div>
+      <div class="metric-value">{{ total_cronicos + total_gestantes }}</div>
+      <div class="metric-sub">Base consolidada</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-xl-6">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Crônicos por risco</h2>
+        <span class="count-pill">{{ total_cronicos }}</span>
+      </div>
+      {% for risco, total in riscos_cronicos %}
+        {% set width = (total / total_cronicos * 100) if total_cronicos else 0 %}
+        <div class="risk-row">
+          <div class="risk-row-head">
+            <span>{{ risco or "Sem classificação" }}</span>
+            <strong>{{ total }}</strong>
+          </div>
+          <div class="track"><div class="track-fill {{ risk_class(risco) }}" data-width="{{ width|round(1) }}"></div></div>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5a1.5 1.5 0 0 0 1.5 1.5H21"/><rect x="7" y="12" width="3" height="5" rx="0.8"/><rect x="12" y="8" width="3" height="9" rx="0.8"/></svg>
+          <strong>Nenhum paciente crônico</strong>
+          <span>Cadastre o primeiro para ver a distribuição.</span>
+        </div>
+      {% endfor %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Gestantes por risco</h2>
+        <span class="count-pill">{{ total_gestantes }}</span>
+      </div>
+      {% for risco, total in riscos_gestantes %}
+        {% set width = (total / total_gestantes * 100) if total_gestantes else 0 %}
+        <div class="risk-row">
+          <div class="risk-row-head">
+            <span>{{ risco or "Sem classificação" }}</span>
+            <strong>{{ total }}</strong>
+          </div>
+          <div class="track"><div class="track-fill {{ risk_class(risco) }}" data-width="{{ width|round(1) }}"></div></div>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0-8.7 6.7 2 2 0 0 0 0 4.6A9 9 0 0 0 20.7 14.3a2 2 0 0 0 0-4.6A9 9 0 0 0 12 3Z"/></svg>
+          <strong>Nenhuma gestante cadastrada</strong>
+          <span>Cadastre a primeira para ver a distribuição.</span>
+        </div>
+      {% endfor %}
+    </section>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-6">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>Alertas de crônicos</h2></div>
+      {% if cronicos_alerta %}
+        <div class="alert-list">
+          {% for paciente in cronicos_alerta %}
+            <a class="alert-item" href="{{ url_for('editar_cronico', id=paciente.id) }}">
+              <div class="alert-item-main">
+                <div class="alert-item-name">{{ paciente.nome_completo }}</div>
+                <div class="alert-item-meta">{{ paciente.cpf|cpf }}</div>
+              </div>
+              {% include "_badge_risco.html" with context %}
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          <strong>Tudo em dia</strong>
+          <span>Nenhum alerta de crônicos no momento.</span>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>DPP nos próximos 30 dias</h2></div>
+      {% if proximas_dpps %}
+        <div class="alert-list">
+          {% for paciente in proximas_dpps %}
+            <a class="alert-item" href="{{ url_for('editar_gestante', id=paciente.id) }}">
+              <div class="alert-item-main">
+                <div class="alert-item-name">{{ paciente.nome_paciente }}</div>
+                <div class="alert-item-meta">{{ paciente.classificacao_risco or "Sem classificação" }}</div>
+              </div>
+              <strong class="cell-numeric">{{ paciente.dpp|date_br }}</strong>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+          <strong>Nenhuma DPP próxima</strong>
+          <span>Sem partos previstos nos próximos 30 dias.</span>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

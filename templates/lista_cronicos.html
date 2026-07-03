@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
+{% block title %}Pacientes Crônicos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Pacientes crônicos</h1>
+    <p class="lead">Hipertensão, diabetes e estratificação cardiovascular.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('novo_cronico') }}">Novo paciente</a>
+</div>
+
+<form class="d-flex flex-wrap align-items-center gap-2 mb-3" role="search">
+  <div class="search-input" style="flex: 1 1 260px; max-width: 380px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input class="form-control" type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome ou CPF">
+  </div>
+  <div style="flex: 0 1 220px;">{{ select_acs(acs_sel, placeholder="Todos os ACS") }}</div>
+  <button class="btn btn-primary" type="submit">Filtrar</button>
+  {% if busca or acs_sel %}<a class="btn btn-ghost" href="{{ url_for('lista_cronicos') }}">Limpar</a>{% endif %}
+</form>
+
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>CPF</th>
+          <th>ACS</th>
+          <th>Condições</th>
+          <th>Risco</th>
+          <th class="text-end">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for paciente in pacientes %}
+          <tr>
+            <td>
+              <strong>{{ paciente.nome_completo }}</strong>
+              {% if paciente.precisa_prevent %}
+                <div class="small" style="color: var(--risk-mid); font-weight: 600; margin-top: 2px;">Prevent pendente</div>
+              {% endif %}
+            </td>
+            <td class="cell-numeric">{{ paciente.cpf|cpf }}</td>
+            <td>{{ paciente.acs or "—" }}</td>
+            <td>
+              {% if paciente.has %}<span class="tag">HAS</span>{% endif %}
+              {% if paciente.dm2 %}<span class="tag">DM2</span>{% endif %}
+              {% if not paciente.has and not paciente.dm2 %}—{% endif %}
+            </td>
+            <td>{% include "_badge_risco.html" with context %}</td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('prevent', id=paciente.id) }}">Prevent</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('editar_cronico', id=paciente.id) }}">Editar</a>
+              <form class="d-inline" method="post" action="{{ url_for('excluir_cronico', id=paciente.id) }}" data-confirm-form data-confirm-title="Remover paciente" data-confirm-message="Remover este paciente? Esta ação não poderá ser desfeita.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M17 9h5M19.5 6.5v5"/></svg>
+                <strong>{% if busca or acs_sel %}Nenhum paciente encontrado{% else %}Nenhum paciente cadastrado{% endif %}</strong>
+                <span>{% if busca or acs_sel %}Ajuste os filtros de busca ou de ACS.{% else %}Comece cadastrando o primeiro paciente crônico.{% endif %}</span>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

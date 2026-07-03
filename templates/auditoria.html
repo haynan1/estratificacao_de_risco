@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Auditoria{% endblock %}
+
+{% set acao_cfg = {
+  "criar": ("Criou", "risk-low"),
+  "editar": ("Editou", "risk-mid"),
+  "excluir": ("Excluiu", "risk-high"),
+  "prevent": ("PREVENT", "risk-mid"),
+  "login": ("Login", "risk-none"),
+  "senha": ("Trocou senha", "risk-none"),
+  "reset_senha": ("Redefiniu senha", "risk-mid"),
+  "status": ("Status", "risk-none"),
+  "papel": ("Papel", "risk-mid"),
+  "backup": ("Backup", "risk-low")
+} %}
+{% set entidade_label = {
+  "cronico": "Crônico", "gestante": "Gestante", "agente": "Agente",
+  "usuario": "Usuário", "sistema": "Sistema"
+} %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Auditoria</h1>
+    <p class="lead">Histórico de quem fez cada ação no sistema.</p>
+  </div>
+</div>
+
+<form class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <div style="flex: 0 1 200px;">
+    <select class="form-select" name="usuario">
+      <option value="">Todos os usuários</option>
+      {% for u in usuarios %}
+        <option value="{{ u }}" {{ "selected" if filtros.usuario == u }}>{{ u }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="flex: 0 1 180px;">
+    <select class="form-select" name="acao">
+      <option value="">Todas as ações</option>
+      {% for a in acoes %}
+        <option value="{{ a }}" {{ "selected" if filtros.acao == a }}>{{ acao_cfg.get(a, (a, ""))[0] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="flex: 0 1 180px;">
+    <select class="form-select" name="entidade">
+      <option value="">Todas as áreas</option>
+      {% for e in entidades %}
+        <option value="{{ e }}" {{ "selected" if filtros.entidade == e }}>{{ entidade_label.get(e, e|capitalize) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary" type="submit">Filtrar</button>
+  {% if filtros.usuario or filtros.acao or filtros.entidade %}
+    <a class="btn btn-ghost" href="{{ url_for('auditoria') }}">Limpar</a>
+  {% endif %}
+</form>
+
+<div class="table-card">
+  <div class="panel-head" style="padding: 1.1rem 1.35rem; margin: 0; border-bottom: 1px solid var(--border);">
+    <h2 style="font-size: 1rem; margin: 0;">Registros</h2>
+    <span class="count-pill">{{ registros.total }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Data e hora</th>
+          <th>Usuário</th>
+          <th>Ação</th>
+          <th>Área</th>
+          <th>Detalhe</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in registros.items %}
+          {% set cfg = acao_cfg.get(r.acao, (r.acao, "risk-none")) %}
+          <tr>
+            <td class="cell-numeric text-nowrap">{{ r.criado_em.strftime("%d/%m/%Y %H:%M") if r.criado_em else "—" }}</td>
+            <td>{{ r.usuario or "—" }}</td>
+            <td><span class="badge-risk {{ cfg[1] }}">{{ cfg[0] }}</span></td>
+            <td>{{ entidade_label.get(r.entidade, r.entidade|capitalize) }}</td>
+            <td class="text-secondary">{{ r.detalhe or "—" }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
+                <strong>Nenhum registro</strong>
+                <span>{% if filtros.usuario or filtros.acao or filtros.entidade %}Nenhuma ação corresponde aos filtros.{% else %}As ações realizadas aparecerão aqui.{% endif %}</span>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if registros.pages > 1 %}
+<nav class="pager">
+  <a class="btn btn-outline-secondary btn-sm {{ 'disabled' if not registros.has_prev }}"
+     href="{{ url_for('auditoria', page=registros.prev_num, usuario=filtros.usuario, acao=filtros.acao, entidade=filtros.entidade) if registros.has_prev else '#' }}">← Anterior</a>
+  <span class="pager-info">Página {{ registros.page }} de {{ registros.pages }}</span>
+  <a class="btn btn-outline-secondary btn-sm {{ 'disabled' if not registros.has_next }}"
+     href="{{ url_for('auditoria', page=registros.next_num, usuario=filtros.usuario, acao=filtros.acao, entidade=filtros.entidade) if registros.has_next else '#' }}">Próxima →</a>
+</nav>
+{% endif %}
+{% endblock %}

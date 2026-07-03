@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}PREVENT{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Avaliação PREVENT</h1>
+    <p class="lead">{{ paciente.nome_completo }}</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('lista_cronicos') }}">Voltar</a>
+</div>
+
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3">
+    <div class="col-md-2"><label class="form-label">Idade calc.</label><input class="form-control" type="number" name="idade_cal_prevent" value="{{ avaliacao.idade_cal_prevent or paciente.idade or '' }}" readonly></div>
+    <div class="col-md-2"><label class="form-label">CT calc.</label><input class="form-control" name="ct_calc" value="{{ avaliacao.ct_calc or '' }}" readonly></div>
+    <div class="col-md-3"><label class="form-label">Data exames</label><input class="form-control" type="date" name="data_exames" value="{{ avaliacao.data_exames }}"></div>
+    <div class="col-md-2"><label class="form-label">CT</label><input class="form-control" name="ct" value="{{ avaliacao.ct or '' }}"></div>
+    <div class="col-md-2"><label class="form-label">HDL calc.</label><input class="form-control" name="hdl_calc_prevent" value="{{ avaliacao.hdl_calc_prevent or '' }}" readonly></div>
+    <div class="col-md-2"><label class="form-label">HDL</label><input class="form-control" name="hdl" value="{{ avaliacao.hdl or '' }}"></div>
+    <div class="col-md-2"><label class="form-label">PAS calc.</label><input class="form-control" type="number" name="pas_calc_prevent" value="{{ avaliacao.pas_calc_prevent or '' }}" readonly></div>
+    <div class="col-md-2"><label class="form-label">TFG calc.</label><input class="form-control" name="tfg_cal_prevent" value="{{ avaliacao.tfg_cal_prevent or '' }}" readonly></div>
+    <div class="col-md-2"><label class="form-label">TFG CKD-EPI</label><input class="form-control" name="tfg_ckd_epi" value="{{ avaliacao.tfg_ckd_epi or '' }}" readonly></div>
+    <div class="col-md-2"><label class="form-label">Creatinina</label><input class="form-control" name="cr" value="{{ avaliacao.cr or '' }}"></div>
+    <div class="col-md-2"><label class="form-label">LDL</label><input class="form-control" name="ldl" value="{{ avaliacao.ldl or '' }}"></div>
+    <div class="col-md-2"><label class="form-label">PAS</label><input class="form-control" type="number" name="pas" value="{{ avaliacao.pas or '' }}"></div>
+    {% for name, label in [("dm2","DM2"),("fumante","Fumante"),("anti_hipertensivo","Anti-hipertensivo"),("uso_estatina","Uso de estatina")] %}
+      <div class="col-md-3">
+        <div class="form-check form-switch mt-4">
+          <input class="form-check-input" type="checkbox" name="{{ name }}" id="{{ name }}" {% if avaliacao|attr(name) %}checked{% endif %}>
+          <label class="form-check-label" for="{{ name }}">{{ label }}</label>
+        </div>
+      </div>
+    {% endfor %}
+    <div class="col-md-3"><label class="form-label">log-Odds</label><input class="form-control" name="log_odds" value="{{ avaliacao.log_odds or '' }}" readonly></div>
+    <div class="col-md-4"><label class="form-label">Risco cardiovascular 10 anos</label><input class="form-control" name="risco_cardiovascular_10_anos" value="{{ avaliacao.risco_cardiovascular_10_anos or '' }}" readonly></div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mt-4">
+    <button class="btn btn-primary" type="submit">Salvar e calcular Prevent</button>
+  </div>
+</form>
+{% endblock %}

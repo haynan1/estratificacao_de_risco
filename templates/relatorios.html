@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
+{% block title %}Relatórios{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Relatórios</h1>
+    <p class="lead">Filtre a base consolidada e exporte para PDF ou Excel.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" data-loading-on-click href="{{ url_for('exportar_excel', **filters) }}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="margin: -2px 4px 0 -2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l2 3 4-5"/></svg>
+      Excel
+    </a>
+    <a class="btn btn-outline-secondary" data-loading-on-click href="{{ url_for('exportar_pdf', **filters) }}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="margin: -2px 4px 0 -2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6M9 18h4"/></svg>
+      PDF
+    </a>
+  </div>
+</div>
+
+<form class="panel mb-4" method="get">
+  <div class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label">Base</label>
+      <select class="form-select" name="tipo">
+        <option value="todos" {% if filters.tipo == "todos" %}selected{% endif %}>Todos</option>
+        <option value="cronicos" {% if filters.tipo == "cronicos" %}selected{% endif %}>Crônicos</option>
+        <option value="gestantes" {% if filters.tipo == "gestantes" %}selected{% endif %}>Gestantes</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Risco</label>
+      <select class="form-select" name="risco">
+        <option value="">Todos</option>
+        {% for risco in riscos %}
+          <option value="{{ risco }}" {% if filters.risco == risco %}selected{% endif %}>{{ risco }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">ACS</label>
+      {{ select_acs(filters.acs, placeholder="Todos") }}
+    </div>
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-primary" type="submit">Aplicar</button>
+    </div>
+  </div>
+</form>
+
+<section class="table-card">
+  <div class="panel-head" style="padding: 1.1rem 1.35rem; margin: 0; border-bottom: 1px solid var(--border);">
+    <h2 style="font-size: 1rem; margin: 0;">Resultado</h2>
+    <span class="count-pill">{{ rows|length }} registros</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Nome</th>
+          <th>CPF</th>
+          <th>ACS</th>
+          <th>Risco</th>
+          <th>Condição/IG</th>
+          <th>Referência</th>
+          <th>Observação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><span class="tag">{{ row.tipo }}</span></td>
+            <td><strong>{{ row.nome }}</strong></td>
+            <td class="cell-numeric">{{ row.cpf }}</td>
+            <td>{{ row.acs or "—" }}</td>
+            <td>{{ row.risco or "—" }}</td>
+            <td>{{ row.condicao or "—" }}</td>
+            <td class="cell-numeric">{{ row.referencia|date_br or "—" }}</td>
+            <td>{{ row.observacao or "—" }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <strong>Nenhum registro encontrado</strong>
+                <span>Nenhum dado corresponde aos filtros selecionados.</span>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

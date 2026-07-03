@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
+{% block title %}Gestantes{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Gestantes e puérperas</h1>
+    <p class="lead">Acompanhamento pré-natal, puerpério e risco obstétrico.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('nova_gestante') }}">Nova gestante</a>
+</div>
+
+<form class="d-flex flex-wrap align-items-center gap-2 mb-3" role="search">
+  <div class="search-input" style="flex: 1 1 260px; max-width: 380px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input class="form-control" type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome ou CPF">
+  </div>
+  <div style="flex: 0 1 220px;">{{ select_acs(acs_sel, placeholder="Todos os ACS") }}</div>
+  <button class="btn btn-primary" type="submit">Filtrar</button>
+  {% if busca or acs_sel %}<a class="btn btn-ghost" href="{{ url_for('lista_gestantes') }}">Limpar</a>{% endif %}
+</form>
+
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>CPF</th>
+          <th>Grupo</th>
+          <th>IG atual</th>
+          <th>DPP</th>
+          <th>Risco</th>
+          <th class="text-end">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for paciente in pacientes %}
+          <tr>
+            <td>
+              <strong>{{ paciente.nome_paciente }}</strong>
+              <div class="alert-item-meta">{{ paciente.acs or "—" }}</div>
+            </td>
+            <td class="cell-numeric">{{ paciente.cpf|cpf }}</td>
+            <td><span class="tag">{{ paciente.grupo or "—" }}</span></td>
+            <td class="cell-numeric">{{ paciente.ig_atual_semanas or paciente.ig_semanas or "—" }}</td>
+            <td class="cell-numeric">{{ paciente.dpp.strftime("%d/%m/%Y") if paciente.dpp else "—" }}</td>
+            <td>{% include "_badge_risco.html" with context %}</td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('editar_gestante', id=paciente.id) }}">Editar</a>
+              <form class="d-inline" method="post" action="{{ url_for('excluir_gestante', id=paciente.id) }}" data-confirm-form data-confirm-title="Remover registro" data-confirm-message="Remover este registro? Esta ação não poderá ser desfeita.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0-8.7 6.7 2 2 0 0 0 0 4.6A9 9 0 0 0 20.7 14.3a2 2 0 0 0 0-4.6A9 9 0 0 0 12 3Z"/></svg>
+                <strong>Nenhum registro encontrado</strong>
+                <span>{% if busca or acs_sel %}Ajuste os filtros de busca ou de ACS.{% else %}Comece cadastrando a primeira gestante ou puérpera.{% endif %}</span>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

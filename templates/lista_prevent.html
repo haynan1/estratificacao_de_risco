@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
+{% block title %}PREVENT{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Avaliação PREVENT</h1>
+    <p class="lead">Escore de risco cardiovascular em 10 anos dos pacientes crônicos.</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="metric is-alert">
+      <span class="metric-accent"></span>
+      <div class="metric-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Pendentes
+      </div>
+      <div class="metric-value">{{ total_pendentes }}</div>
+      <div class="metric-sub">Aguardando cálculo do escore</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="metric is-brand">
+      <span class="metric-accent"></span>
+      <div class="metric-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Calculados
+      </div>
+      <div class="metric-value">{{ total_calculados }}</div>
+      <div class="metric-sub">Com escore registrado</div>
+    </div>
+  </div>
+</div>
+
+<form class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <div style="flex: 0 1 200px;">
+    <select class="form-select" name="status">
+      <option value="" {{ "selected" if not status_sel }}>Todos os status</option>
+      <option value="pendente" {{ "selected" if status_sel == "pendente" }}>Pendentes</option>
+      <option value="calculado" {{ "selected" if status_sel == "calculado" }}>Calculados</option>
+    </select>
+  </div>
+  <div style="flex: 0 1 220px;">{{ select_acs(acs_sel, placeholder="Todos os ACS") }}</div>
+  <button class="btn btn-primary" type="submit">Filtrar</button>
+  {% if acs_sel or status_sel %}<a class="btn btn-ghost" href="{{ url_for('lista_prevent') }}">Limpar</a>{% endif %}
+</form>
+
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>CPF</th>
+          <th>ACS</th>
+          <th>Risco CV (10 anos)</th>
+          <th>Data dos exames</th>
+          <th>Status</th>
+          <th class="text-end">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for paciente in pacientes %}
+          {% set av = paciente.avaliacao_prevent %}
+          <tr>
+            <td><strong>{{ paciente.nome_completo }}</strong></td>
+            <td class="cell-numeric">{{ paciente.cpf|cpf }}</td>
+            <td>{{ paciente.acs or "—" }}</td>
+            <td class="cell-numeric">
+              {% if av and av.risco_cardiovascular_10_anos %}
+                <strong>{{ av.risco_cardiovascular_10_anos }}</strong>
+              {% else %}—{% endif %}
+            </td>
+            <td class="cell-numeric">{{ av.data_exames|date_br if av and av.data_exames else "—" }}</td>
+            <td>
+              {% if paciente.precisa_prevent %}
+                <span class="badge-risk risk-mid">Pendente</span>
+              {% elif av %}
+                <span class="badge-risk risk-low">Calculado</span>
+              {% else %}
+                <span class="badge-risk risk-none">Sem escore</span>
+              {% endif %}
+            </td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('prevent', id=paciente.id) }}">{{ "Calcular" if paciente.precisa_prevent else "Editar" }}</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('editar_cronico', id=paciente.id) }}">Ficha</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.4h4l1.6-3.2 3 6 1.6-2.8h6.8"/><path d="M21 6.5a3.5 3.5 0 0 0-6-2.4A3.5 3.5 0 0 0 9 6.5"/></svg>
+                <strong>{% if acs_sel or status_sel %}Nenhum paciente encontrado{% else %}Nenhum paciente para PREVENT{% endif %}</strong>
+                <span>{% if acs_sel or status_sel %}Ajuste os filtros de status ou de ACS.{% else %}Marque um crônico como “Calcular Prevent” para vê-lo aqui.{% endif %}</span>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

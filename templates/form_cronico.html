@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
+{% block title %}Paciente Crônico{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ "Editar" if paciente.id else "Novo" }} paciente crônico</h1>
+    <p class="lead">Dados pessoais, condições clínicas e sinais vitais.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('lista_cronicos') }}">Voltar</a>
+</div>
+
+{% if paciente.precisa_prevent %}
+  <div class="toast-flash toast-warning">
+    <span class="toast-dot" aria-hidden="true"></span>
+    <span class="toast-msg">Este paciente está marcado para calcular Prevent. Preencha a avaliação cardiovascular.</span>
+  </div>
+{% endif %}
+
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dados" type="button">Dados pessoais</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#clinicos" type="button">Dados clínicos</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#sinais" type="button">Sinais vitais</button></li>
+  </ul>
+
+  <div class="tab-content pt-3">
+    <section class="tab-pane fade show active" id="dados">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nome completo</label><input class="form-control" name="nome_completo" value="{{ paciente.nome_completo or '' }}" required></div>
+        <div class="col-md-3"><label class="form-label">CPF</label><input class="form-control" name="cpf" value="{{ paciente.cpf|cpf }}" data-cpf-mask maxlength="14" inputmode="numeric" required></div>
+        <div class="col-md-3"><label class="form-label">ACS</label>{{ select_acs(paciente.acs) }}</div>
+        <div class="col-md-3"><label class="form-label">Data de nascimento</label><input class="form-control" type="date" name="data_nascimento" value="{{ paciente.data_nascimento }}" data-birth-date></div>
+        <div class="col-md-2"><label class="form-label">Idade</label><input class="form-control" type="number" name="idade" value="{{ paciente.idade or '' }}" data-age-field readonly></div>
+        <div class="col-md-3"><label class="form-label">Sexo</label><input class="form-control" name="sexo" value="{{ paciente.sexo or '' }}"></div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade" id="clinicos">
+      <div class="row g-3">
+        {% for name, label in [("has","HAS"),("dm2","DM2"),("dcv_at_sintomatica","DCV At. sintomática"),("loa","LOA"),("ateroesclerose_subclinica","Ateroesclerose subclínica"),("emulti","eMulti")] %}
+          <div class="col-md-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="{{ name }}" id="{{ name }}" {% if paciente|attr(name) %}checked{% endif %}>
+              <label class="form-check-label" for="{{ name }}">{{ label }}</label>
+            </div>
+          </div>
+        {% endfor %}
+        <div class="col-md-3"><label class="form-label">Condições alto risco</label><input class="form-control" type="number" name="condicoes_alto_risco" value="{{ paciente.condicoes_alto_risco or 0 }}"></div>
+        <div class="col-md-3"><label class="form-label">Eventos prévios</label><input class="form-control" type="number" name="num_eventos_previos" value="{{ paciente.num_eventos_previos or 0 }}"></div>
+        <div class="col-md-3"><label class="form-label">Especialista</label><input class="form-control" name="especialista" value="{{ paciente.especialista or '' }}"></div>
+        <div class="col-md-3"><label class="form-label">Risco estratificado</label><input class="form-control" name="risco_estratificado" value="{{ 'Calcular Prevent' if (paciente.risco_estratificado or '')|lower == 'calcular prevent' else paciente.risco_estratificado or '' }}" readonly></div>
+        <div class="col-md-6"><label class="form-label">Exames cardiovasculares</label><input class="form-control" name="exames_cardiovasc" value="{{ paciente.exames_cardiovasc or '' }}" readonly></div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade" id="sinais">
+      <div class="row g-3">
+        <div class="col-md-3"><label class="form-label">Última HbA1c</label><input class="form-control" name="ultima_hba1c" value="{{ paciente.ultima_hba1c or '' }}"></div>
+        <div class="col-md-3"><label class="form-label">Data últ. HbA1c</label><input class="form-control" type="date" name="data_ult_hba1c" value="{{ paciente.data_ult_hba1c }}"></div>
+        <div class="col-md-3"><label class="form-label">Última PA</label><input class="form-control" name="ultima_pa" value="{{ paciente.ultima_pa or '' }}"></div>
+        <div class="col-md-3"><label class="form-label">PAS</label><input class="form-control" type="number" name="pas" value="{{ paciente.pas or '' }}" readonly></div>
+        <div class="col-md-3"><label class="form-label">Data últ. PA</label><input class="form-control" type="date" name="data_ult_pa" value="{{ paciente.data_ult_pa }}"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mt-4">
+    <button class="btn btn-primary" type="submit">Salvar</button>
+  </div>
+</form>
+{% endblock %}

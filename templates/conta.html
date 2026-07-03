@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Trocar senha{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Trocar senha</h1>
+    <p class="lead">Atualize a senha da sua conta ({{ current_user.nome or current_user.username }}).</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-5 col-md-8">
+    <section class="panel">
+      <form method="post" action="{{ url_for('alterar_propria_senha') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label">Senha atual</label>
+          <input class="form-control" type="password" name="senha_atual" required autocomplete="current-password" autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nova senha</label>
+          <input class="form-control" type="password" name="nova_senha" required minlength="8" autocomplete="new-password" placeholder="Mín. 8 caracteres">
+        </div>
+        <div class="mb-4">
+          <label class="form-label">Confirmar nova senha</label>
+          <input class="form-control" type="password" name="confirmar_senha" required minlength="8" autocomplete="new-password">
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+          <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Cancelar</a>
+          <button class="btn btn-primary" type="submit">Salvar nova senha</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

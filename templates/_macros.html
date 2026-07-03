@@ -1,0 +1,14 @@
+{% macro select_acs(current, name="acs", placeholder="— Selecione o ACS —") %}
+{% set nomes = agentes_saude | map(attribute="nome") | list %}
+<select class="form-select" name="{{ name }}">
+  <option value="">{{ placeholder }}</option>
+  {% for ag in agentes_saude %}
+    <option value="{{ ag.nome }}" {{ "selected" if current == ag.nome }}>
+      {{ ag.nome }}{% if ag.micro_area %} · MA {{ ag.micro_area }}{% endif %}
+    </option>
+  {% endfor %}
+  {% if current and current not in nomes %}
+    <option value="{{ current }}" selected>{{ current }} (não cadastrado)</option>
+  {% endif %}
+</select>
+{% endmacro %}

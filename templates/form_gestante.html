@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
+{% block title %}Gestante{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ "Editar" if paciente.id else "Nova" }} gestante</h1>
+    <p class="lead">Pré-natal, triagem e sinais vitais.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('lista_gestantes') }}">Voltar</a>
+</div>
+
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dados" type="button">Dados pessoais</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#obstetricos" type="button">Pré-natal</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#triagem" type="button">Triagem</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#sinais" type="button">Sinais vitais</button></li>
+  </ul>
+
+  <div class="tab-content pt-3">
+    <section class="tab-pane fade show active" id="dados">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nome da paciente</label><input class="form-control" name="nome_paciente" value="{{ paciente.nome_paciente or '' }}" required></div>
+        <div class="col-md-3"><label class="form-label">CPF</label><input class="form-control" name="cpf" value="{{ paciente.cpf|cpf }}" data-cpf-mask maxlength="14" inputmode="numeric" required></div>
+        <div class="col-md-3"><label class="form-label">ACS</label>{{ select_acs(paciente.acs) }}</div>
+        <div class="col-md-3"><label class="form-label">Grupo</label><select class="form-select" name="grupo"><option {% if paciente.grupo == 'Gestante' %}selected{% endif %}>Gestante</option><option {% if paciente.grupo == 'Puérpera' %}selected{% endif %}>Puérpera</option></select></div>
+        <div class="col-md-3"><label class="form-label">Data de nascimento</label><input class="form-control" type="date" name="data_nascimento" value="{{ paciente.data_nascimento }}" data-birth-date></div>
+        <div class="col-md-2"><label class="form-label">Idade</label><input class="form-control" type="number" name="idade" value="{{ paciente.idade or '' }}" data-age-field readonly></div>
+        <div class="col-md-2"><label class="form-label">Raça/cor</label><input class="form-control" name="raca_cor" value="{{ paciente.raca_cor or '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Vulnerabilidade familiar</label><input class="form-control" name="vulnerabilidade_familiar" value="{{ paciente.vulnerabilidade_familiar or '' }}"></div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade" id="obstetricos">
+      <div class="row g-3">
+        <div class="col-md-3"><label class="form-label">Última consulta</label><input class="form-control" type="date" name="ultima_consulta" value="{{ paciente.ultima_consulta }}"></div>
+        <div class="col-md-2"><label class="form-label">IG semanas</label><input class="form-control" type="number" name="ig_semanas" value="{{ paciente.ig_semanas or '' }}" readonly></div>
+        <div class="col-md-3"><label class="form-label">Consulta regular UBS</label><input class="form-control" name="consulta_regular_ubs" value="{{ paciente.consulta_regular_ubs or '' }}"></div>
+        <div class="col-md-4"><label class="form-label">Classificação de risco</label><input class="form-control" name="classificacao_risco" value="{{ paciente.classificacao_risco or '' }}" readonly></div>
+        <div class="col-md-3"><label class="form-label">Avaliação odonto</label><input class="form-control" name="avaliacao_odonto" value="{{ paciente.avaliacao_odonto or '' }}"></div>
+        <div class="col-md-3"><label class="form-label">DUM</label><input class="form-control" type="date" name="dum" value="{{ paciente.dum }}"></div>
+        <div class="col-md-3"><label class="form-label">1º USG</label><input class="form-control" type="date" name="primeiro_usg" value="{{ paciente.primeiro_usg }}"></div>
+        <div class="col-md-3"><label class="form-label">IG 1º USG</label><input class="form-control" name="ig_primeiro_usg" value="{{ paciente.ig_primeiro_usg or '' }}"></div>
+        <div class="col-md-3"><label class="form-label">IG atual</label><input class="form-control" name="ig_atual_semanas" value="{{ paciente.ig_atual_semanas or '' }}" readonly></div>
+        <div class="col-md-3"><label class="form-label">DPP calculada</label><input class="form-control" value="{{ paciente.dpp.strftime('%d/%m/%Y') if paciente.dpp else 'Calculada ao salvar pela DUM' }}" disabled></div>
+        <div class="col-md-3"><label class="form-label">Número de gestações</label><input class="form-control" type="number" name="numero_gestacoes" value="{{ paciente.numero_gestacoes or '' }}"></div>
+        {% for name, label in [("criterio_risco_intermediario","Risco intermediário"),("criterio_alto_risco","Alto risco"),("hac_descontrole","HAC descontrole"),("dm_descontrole","DM descontrole")] %}
+          <div class="col-md-3">
+            <div class="form-check form-switch mt-4">
+              <input class="form-check-input" type="checkbox" name="{{ name }}" id="{{ name }}" {% if paciente|attr(name) %}checked{% endif %}>
+              <label class="form-check-label" for="{{ name }}">{{ label }}</label>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="tab-pane fade" id="triagem">
+      <div class="row g-3">
+        {% for name, label in [("teste_mamae_1","Teste da Mamãe 1"),("teste_mamae_2","Teste da Mamãe 2"),("exames_rotina_sangue","Exames de rotina")] %}
+          <div class="col-md-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="{{ name }}" id="{{ name }}" {% if paciente|attr(name) %}checked{% endif %}>
+              <label class="form-check-label" for="{{ name }}">{{ label }}</label>
+            </div>
+          </div>
+        {% endfor %}
+        <div class="col-12"><label class="form-label">Resultados</label><textarea class="form-control" name="resultados" rows="4">{{ paciente.resultados or '' }}</textarea></div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade" id="sinais">
+      <div class="row g-3">
+        <div class="col-md-2"><label class="form-label">Peso kg</label><input class="form-control" name="peso" value="{{ paciente.peso or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">Estatura cm</label><input class="form-control" name="estatura" value="{{ paciente.estatura or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">IMC calculado</label><input class="form-control" value="{{ paciente.imc or 'Calculado ao salvar' }}" disabled></div>
+        <div class="col-md-2"><label class="form-label">Glicemia capilar</label><input class="form-control" name="glicemia_capilar" value="{{ paciente.glicemia_capilar or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">Respiração</label><input class="form-control" type="number" name="respiracao" value="{{ paciente.respiracao or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">AFU</label><input class="form-control" type="number" name="afu" value="{{ paciente.afu or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">PA</label><input class="form-control" name="pa" value="{{ paciente.pa or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">BCF</label><input class="form-control" type="number" name="bcf" value="{{ paciente.bcf or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">Freq. cardíaca</label><input class="form-control" type="number" name="freq_card" value="{{ paciente.freq_card or '' }}"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mt-4">
+    <button class="btn btn-primary" type="submit">Salvar</button>
+  </div>
+</form>
+{% endblock %}

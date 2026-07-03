@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-br" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login · Estratificação de Risco</title>
+    <script>
+      const savedTheme = localStorage.getItem("theme") || "dark";
+      document.documentElement.setAttribute("data-bs-theme", savedTheme);
+    </script>
+    <link href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260703-auth') }}">
+  </head>
+  <body class="login-page">
+    <main class="login-shell">
+      <section class="login-card">
+        <div class="brand-mark login-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>
+            <path d="M3.5 12.4h4l1.6-3.2 3 6 1.6-2.8h4.8"/>
+          </svg>
+        </div>
+        <h1>Estratificação de Risco</h1>
+        <p>Acesso restrito à rede local da unidade.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="toast-flash toast-{{ category }}" role="alert">
+                <span class="toast-dot" aria-hidden="true"></span>
+                <span class="toast-msg">{{ message }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" class="mt-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label">Usuário</label>
+            <input class="form-control" name="username" autocomplete="username" required autofocus>
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Senha</label>
+            <input class="form-control" type="password" name="password" autocomplete="current-password" required>
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Entrar</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
