@@ -10,9 +10,9 @@ class Auditoria(db.Model):
     __tablename__ = "auditoria"
 
     id = db.Column(db.Integer, primary_key=True)
-    usuario = db.Column(db.String(80))
-    acao = db.Column(db.String(40), nullable=False)
-    entidade = db.Column(db.String(40), nullable=False)
+    usuario = db.Column(db.String(80), index=True)
+    acao = db.Column(db.String(40), nullable=False, index=True)
+    entidade = db.Column(db.String(40), nullable=False, index=True)
     entidade_id = db.Column(db.Integer)
     detalhe = db.Column(db.String(200))
     criado_em = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)

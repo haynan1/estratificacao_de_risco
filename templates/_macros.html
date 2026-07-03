@@ -1,3 +1,15 @@
+{% macro pager(paginacao, args={}) %}
+{% if paginacao and paginacao.pages > 1 %}
+<nav class="pager">
+  <a class="btn btn-outline-secondary btn-sm {{ 'disabled' if not paginacao.has_prev }}"
+     href="{{ url_for(request.endpoint, page=paginacao.prev_num, **args) if paginacao.has_prev else '#' }}">← Anterior</a>
+  <span class="pager-info">Página {{ paginacao.page }} de {{ paginacao.pages }} · {{ paginacao.total }} no total</span>
+  <a class="btn btn-outline-secondary btn-sm {{ 'disabled' if not paginacao.has_next }}"
+     href="{{ url_for(request.endpoint, page=paginacao.next_num, **args) if paginacao.has_next else '#' }}">Próxima →</a>
+</nav>
+{% endif %}
+{% endmacro %}
+
 {% macro select_acs(current, name="acs", placeholder="— Selecione o ACS —") %}
 {% set nomes = agentes_saude | map(attribute="nome") | list %}
 <select class="form-select" name="{{ name }}">

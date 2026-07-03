@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import select_acs with context %}
+{% from "_macros.html" import select_acs, pager with context %}
 {% block title %}PREVENT{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -103,4 +103,6 @@
     </table>
   </div>
 </div>
+
+{{ pager(paginacao, {"status": status_sel, "acs": acs_sel}) }}
 {% endblock %}

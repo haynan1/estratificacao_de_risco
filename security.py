@@ -5,6 +5,7 @@ mantendo a promessa de funcionar offline, em rede local fechada, após instalado
 """
 
 import hmac
+import logging
 import os
 import secrets
 import time
@@ -16,9 +17,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from models import Usuario, db
 
+logger = logging.getLogger(__name__)
+
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-PUBLIC_ENDPOINTS = {"login", "static"}
+PUBLIC_ENDPOINTS = {"login", "static", "versao"}
 SENHA_MIN = 8
 
 # Throttle de login em memória (suficiente para uso em rede local de uma unidade).
@@ -168,7 +171,7 @@ def ensure_admin_user():
 
     if not password:
         password = secrets.token_urlsafe(12)
-        print(f"[seguranca] Admin '{username}' criado com senha temporaria: {password}")
+        logger.warning("Admin '%s' criado com senha temporaria: %s", username, password)
     db.session.add(
         Usuario(
             username=username,

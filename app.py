@@ -1,8 +1,7 @@
 from datetime import date, datetime, timedelta
-from io import BytesIO
+import logging
 import os
-import re
-import shutil
+import sqlite3
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -16,14 +15,9 @@ from flask import (
     session,
     url_for,
 )
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy import event, inspect as sa_inspect, or_, text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash
 
 from domain import (
@@ -31,7 +25,6 @@ from domain import (
     PREVENT_STATUS_VALUES,
     calculate_age,
     calculate_prevent,
-    display_risk,
     is_prevent_status,
     recalculate_cronico,
     recalculate_gestante,
@@ -46,6 +39,7 @@ from models import (
     Usuario,
     db,
 )
+from reports import get_report_rows, write_excel_report, write_pdf_report
 from security import (
     SENHA_MIN,
     admin_required,
@@ -61,8 +55,26 @@ from security import (
     senha_confere,
     senha_valida,
 )
+from utils import (
+    cpf_valido,
+    date_br,
+    format_cpf,
+    only_digits,
+    paginate_list,
+    parse_date,
+    parse_int,
+    parse_float,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
+APP_VERSION = "2026-07-04-hardening"
+PER_PAGE = 50
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 
 def create_app():
@@ -86,6 +98,13 @@ def create_app():
         # Lista de ACS ativos disponível em todos os templates (dropdowns).
         agentes = AgenteSaude.query.filter_by(ativo=True).order_by(AgenteSaude.nome).all()
         return {"agentes_saude": agentes}
+
+    @app.after_request
+    def security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Referrer-Policy"] = "same-origin"
+        return response
 
     with app.app_context():
         _register_sqlite_pragmas()
@@ -134,6 +153,11 @@ def ensure_schema():
             )
     db.session.commit()
 
+    # Cria indices que ainda nao existem (ex.: colunas indexadas adicionadas depois).
+    for table in db.metadata.tables.values():
+        for index in table.indexes:
+            index.create(bind=db.engine, checkfirst=True)
+
 
 # ----------------------------------------------------------------------------
 # Persistência auxiliar
@@ -162,54 +186,8 @@ def registrar_auditoria(acao, entidade, entidade_id=None, detalhe=""):
 
 
 # ----------------------------------------------------------------------------
-# Parsing / formatação (ligados ao request e à apresentação)
+# Aplicação de formulário (ligado ao request). Parsing/formatação vem de utils.py
 # ----------------------------------------------------------------------------
-def parse_date(value):
-    if not value:
-        return None
-    try:
-        return datetime.strptime(value, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return None
-
-
-def parse_int(value):
-    if value in ("", None):
-        return None
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return None
-
-
-def parse_float(value):
-    if value in ("", None):
-        return None
-    try:
-        return float(str(value).replace(",", "."))
-    except (ValueError, TypeError):
-        return None
-
-
-def only_digits(value):
-    return re.sub(r"\D", "", value or "")
-
-
-def cpf_valido(value):
-    return len(only_digits(value)) == 11
-
-
-def format_cpf(value):
-    digits = only_digits(value)[:11]
-    if len(digits) != 11:
-        return value or ""
-    return f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
-
-
-def date_br(value):
-    return value.strftime("%d/%m/%Y") if value else ""
-
-
 def checkbox(name):
     return name in request.form
 
@@ -367,159 +345,17 @@ def propagar_rename_agente(nome_antigo, nome_novo):
         )
 
 
-def get_report_rows(tipo="todos", risco="", acs=""):
-    rows = []
-    if tipo in ("todos", "cronicos"):
-        query = PacienteCronico.query
-        if risco:
-            query = query.filter(PacienteCronico.risco_estratificado == risco)
-        if acs:
-            query = query.filter(PacienteCronico.acs.ilike(f"%{acs}%"))
-        for paciente in query.order_by(PacienteCronico.nome_completo).all():
-            rows.append(
-                {
-                    "tipo": "Crônico",
-                    "nome": paciente.nome_completo,
-                    "cpf": format_cpf(paciente.cpf),
-                    "acs": paciente.acs or "",
-                    "risco": display_risk(paciente.risco_estratificado),
-                    "condicao": ", ".join(
-                        label
-                        for label, active in (
-                            ("HAS", paciente.has),
-                            ("DM2", paciente.dm2),
-                            ("DCV", paciente.dcv_at_sintomatica),
-                        )
-                        if active
-                    ),
-                    "referencia": paciente.data_ult_pa,
-                    "observacao": "Prevent pendente" if paciente.precisa_prevent else "",
-                }
-            )
-
-    if tipo in ("todos", "gestantes"):
-        query = Gestante.query
-        if risco:
-            query = query.filter(Gestante.classificacao_risco == risco)
-        if acs:
-            query = query.filter(Gestante.acs.ilike(f"%{acs}%"))
-        for paciente in query.order_by(Gestante.nome_paciente).all():
-            rows.append(
-                {
-                    "tipo": paciente.grupo or "Gestante",
-                    "nome": paciente.nome_paciente,
-                    "cpf": format_cpf(paciente.cpf),
-                    "acs": paciente.acs or "",
-                    "risco": paciente.classificacao_risco or "",
-                    "condicao": f"IG {paciente.ig_atual_semanas or paciente.ig_semanas or ''}".strip(),
-                    "referencia": paciente.dpp,
-                    "observacao": "Alto risco"
-                    if paciente.criterio_alto_risco
-                    or paciente.hac_descontrole
-                    or paciente.dm_descontrole
-                    else "",
-                }
-            )
-    return rows
-
-
-def write_excel_report(rows):
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "Relatório"
-    headers = [
-        "Tipo",
-        "Nome",
-        "CPF",
-        "ACS",
-        "Risco",
-        "Condição/IG",
-        "Referência",
-        "Observação",
-    ]
-    sheet.append(headers)
-    for cell in sheet[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1F6F78")
-
-    for row in rows:
-        sheet.append(
-            [
-                row["tipo"],
-                row["nome"],
-                row["cpf"],
-                row["acs"],
-                row["risco"],
-                row["condicao"],
-                date_br(row["referencia"]),
-                row["observacao"],
-            ]
-        )
-
-    for column_cells in sheet.columns:
-        width = max(len(str(cell.value or "")) for cell in column_cells) + 2
-        sheet.column_dimensions[column_cells[0].column_letter].width = min(width, 42)
-
-    output = BytesIO()
-    workbook.save(output)
-    output.seek(0)
-    return output
-
-
-def write_pdf_report(rows):
-    output = BytesIO()
-    document = SimpleDocTemplate(
-        output,
-        pagesize=landscape(A4),
-        rightMargin=24,
-        leftMargin=24,
-        topMargin=24,
-        bottomMargin=24,
-    )
-    styles = getSampleStyleSheet()
-    story = [
-        Paragraph("Relatório de Estratificação de Risco", styles["Title"]),
-        Paragraph(f"Gerado em {date.today().strftime('%d/%m/%Y')}", styles["Normal"]),
-        Spacer(1, 12),
-    ]
-    data = [["Tipo", "Nome", "CPF", "ACS", "Risco", "Condição/IG", "Referência", "Obs."]]
-    for row in rows:
-        data.append(
-            [
-                row["tipo"],
-                row["nome"],
-                row["cpf"],
-                row["acs"],
-                row["risco"],
-                row["condicao"],
-                date_br(row["referencia"]),
-                row["observacao"],
-            ]
-        )
-    table = Table(data, repeatRows=1)
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F6F78")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CBD5E1")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]
-        )
-    )
-    story.append(table)
-    document.build(story)
-    output.seek(0)
-    return output
+# get_report_rows, write_excel_report e write_pdf_report ficam em reports.py
 
 
 # ----------------------------------------------------------------------------
 # Rotas
 # ----------------------------------------------------------------------------
 def register_routes(app):
+    @app.route("/versao")
+    def versao():
+        return f"Estratificacao de Risco - versao {APP_VERSION}", 200, {"Content-Type": "text/plain; charset=utf-8"}
+
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if session.get("user_id"):
@@ -624,9 +460,19 @@ def register_routes(app):
             query = query.filter(or_(*filters))
         if acs:
             query = query.filter(PacienteCronico.acs == acs)
-        pacientes = query.order_by(PacienteCronico.nome_completo).all()
+        page = request.args.get("page", 1, type=int)
+        paginacao = db.paginate(
+            query.order_by(PacienteCronico.nome_completo),
+            page=page,
+            per_page=PER_PAGE,
+            error_out=False,
+        )
         return render_template(
-            "lista_cronicos.html", pacientes=pacientes, busca=busca, acs_sel=acs
+            "lista_cronicos.html",
+            pacientes=paginacao.items,
+            paginacao=paginacao,
+            busca=busca,
+            acs_sel=acs,
         )
 
     @app.route("/cronicos/novo", methods=["GET", "POST"])
@@ -700,11 +546,19 @@ def register_routes(app):
         )
         if acs:
             query = query.filter(PacienteCronico.acs == acs)
-        pacientes = query.order_by(PacienteCronico.nome_completo).all()
         if status == "pendente":
-            pacientes = [p for p in pacientes if p.precisa_prevent]
+            query = query.filter(
+                PacienteCronico.risco_estratificado.in_(PREVENT_STATUS_VALUES),
+                ~PacienteCronico.avaliacao_prevent.has(),
+            )
         elif status == "calculado":
-            pacientes = [p for p in pacientes if p.avaliacao_prevent]
+            query = query.filter(PacienteCronico.avaliacao_prevent.has())
+        # joinedload evita N+1 ao acessar avaliacao_prevent linha a linha no template.
+        query = query.options(
+            joinedload(PacienteCronico.avaliacao_prevent)
+        ).order_by(PacienteCronico.nome_completo)
+        page = request.args.get("page", 1, type=int)
+        paginacao = db.paginate(query, page=page, per_page=PER_PAGE, error_out=False)
         total_calculados = PacienteCronico.query.filter(
             PacienteCronico.avaliacao_prevent.has()
         ).count()
@@ -714,7 +568,8 @@ def register_routes(app):
         ).count()
         return render_template(
             "lista_prevent.html",
-            pacientes=pacientes,
+            pacientes=paginacao.items,
+            paginacao=paginacao,
             acs_sel=acs,
             status_sel=status,
             total_calculados=total_calculados,
@@ -737,9 +592,19 @@ def register_routes(app):
             query = query.filter(or_(*filters))
         if acs:
             query = query.filter(Gestante.acs == acs)
-        pacientes = query.order_by(Gestante.nome_paciente).all()
+        page = request.args.get("page", 1, type=int)
+        paginacao = db.paginate(
+            query.order_by(Gestante.nome_paciente),
+            page=page,
+            per_page=PER_PAGE,
+            error_out=False,
+        )
         return render_template(
-            "lista_gestantes.html", pacientes=pacientes, busca=busca, acs_sel=acs
+            "lista_gestantes.html",
+            pacientes=paginacao.items,
+            paginacao=paginacao,
+            busca=busca,
+            acs_sel=acs,
         )
 
     @app.route("/gestantes/novo", methods=["GET", "POST"])
@@ -1026,6 +891,7 @@ def register_routes(app):
         )
 
     @app.route("/backup", methods=["POST"])
+    @admin_required
     def backup_banco():
         database_path = Path(db.engine.url.database)
         if not database_path.is_absolute():
@@ -1038,7 +904,18 @@ def register_routes(app):
         backup_dir.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = backup_dir / f"estratificacao_risco_{timestamp}.db"
-        shutil.copy2(database_path, backup_path)
+        # API de backup do SQLite: gera copia consistente mesmo com WAL ativo
+        # (copiar o arquivo cru poderia perder transacoes ainda no -wal).
+        source = sqlite3.connect(str(database_path))
+        try:
+            destino = sqlite3.connect(str(backup_path))
+            try:
+                with destino:
+                    source.backup(destino)
+            finally:
+                destino.close()
+        finally:
+            source.close()
         registrar_auditoria("backup", "sistema", detalhe=backup_path.name)
         db.session.commit()
         return send_file(backup_path, as_attachment=True, download_name=backup_path.name)
@@ -1047,14 +924,19 @@ def register_routes(app):
     def relatorios():
         filters = report_filters()
         rows = get_report_rows(**filters)
+        page = request.args.get("page", 1, type=int)
+        paginacao = paginate_list(rows, page, PER_PAGE)
         return render_template(
             "relatorios.html",
-            rows=rows,
+            rows=paginacao.items,
+            paginacao=paginacao,
+            total=len(rows),
             filters=filters,
             riscos=all_risk_labels(),
         )
 
     @app.route("/relatorios/exportar/excel")
+    @admin_required
     def exportar_excel():
         rows = get_report_rows(**report_filters())
         output = write_excel_report(rows)
@@ -1067,6 +949,7 @@ def register_routes(app):
         )
 
     @app.route("/relatorios/exportar/pdf")
+    @admin_required
     def exportar_pdf():
         rows = get_report_rows(**report_filters())
         output = write_pdf_report(rows)

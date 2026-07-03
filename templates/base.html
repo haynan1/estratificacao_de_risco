@@ -10,7 +10,7 @@
       document.documentElement.setAttribute("data-bs-theme", savedTheme);
     </script>
     <link href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260703-formulas') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260704-hardening') }}">
   </head>
   <body>
     {% set ep = request.endpoint %}
@@ -64,13 +64,12 @@
           {% if current_user and current_user.is_admin %}
           <a class="nav-item {{ 'is-active' if ep in ['lista_usuarios','novo_usuario','resetar_senha','alternar_papel','alternar_usuario','excluir_usuario'] }}" href="{{ url_for('lista_usuarios') }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 11h-6"/><path d="M20 8v6"/></svg>
-            <span>Usuários</span>
+            <span>Criar usuário</span>
           </a>
           <a class="nav-item {{ 'is-active' if ep == 'auditoria' }}" href="{{ url_for('auditoria') }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
             <span>Auditoria</span>
           </a>
-          {% endif %}
           <form method="post" action="{{ url_for('backup_banco') }}" class="nav-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="nav-item">
@@ -78,6 +77,7 @@
               <span>Backup</span>
             </button>
           </form>
+          {% endif %}
         </nav>
 
         <div class="sidebar-foot">
@@ -163,6 +163,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='app.js', v='20260703-formulas') }}"></script>
+    <script src="{{ url_for('static', filename='app.js', v='20260704-hardening') }}"></script>
   </body>
 </html>

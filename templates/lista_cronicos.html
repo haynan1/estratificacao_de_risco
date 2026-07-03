@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import select_acs with context %}
+{% from "_macros.html" import select_acs, pager with context %}
 {% block title %}Pacientes Crônicos{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -74,4 +74,6 @@
     </table>
   </div>
 </div>
+
+{{ pager(paginacao, {"q": busca, "acs": acs_sel}) }}
 {% endblock %}
