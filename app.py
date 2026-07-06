@@ -106,6 +106,21 @@ def _log_banner_setup(token):
     logger.warning("\n".join(linhas))
 
 
+def _log_banner_recuperacao(username, codigo, ttl):
+    """Imprime o codigo de recuperacao apenas no console/log do servidor."""
+    linhas = [
+        "",
+        "============================================================",
+        "  RECUPERACAO DE SENHA",
+        f"  Usuario:               {username}",
+        f"  Codigo de recuperacao: {codigo}   (valido por {ttl} min)",
+        "  Informe este codigo na tela de redefinicao de senha.",
+        "============================================================",
+        "",
+    ]
+    logger.warning("\n".join(linhas))
+
+
 def create_app():
     load_dotenv()
     app = Flask(__name__)
@@ -493,6 +508,35 @@ def register_routes(app):
         if session.get("user_id"):
             return redirect(url_for("dashboard"))
         if request.method == "POST":
+            action = request.form.get("action") or "resetar"
+            if action == "gerar_codigo":
+                username = (request.form.get("username") or "").strip()
+                identificador = f"{request.remote_addr}|recuperar-gerar"
+                if login_is_blocked(identificador):
+                    flash("Muitas tentativas. Aguarde alguns minutos e tente novamente.", "danger")
+                    return render_template("recuperar.html", username=username)
+                if not username:
+                    flash("Informe o usuário de login para enviar o código ao terminal.", "warning")
+                    return render_template("recuperar.html", username=username)
+
+                register_failed_login(identificador)
+                user = Usuario.query.filter(
+                    db.func.lower(Usuario.username) == username.lower(),
+                    Usuario.ativo.is_(True),
+                ).first()
+                if user:
+                    codigo, ttl = gerar_codigo_recuperacao(app.instance_path, user.username)
+                    _log_banner_recuperacao(user.username, codigo, ttl)
+                else:
+                    # Equaliza o tempo de resposta: sem isso, só o caminho do usuário
+                    # existente roda o hash lento, permitindo enumeração por timing.
+                    hash_senha("timing-equalizer")
+                flash(
+                    "Se o usuário existir e estiver ativo, o código foi enviado ao terminal do servidor.",
+                    "success",
+                )
+                return render_template("recuperar.html", username=username)
+
             codigo = (request.form.get("codigo") or "").strip()
             senha = request.form.get("senha") or ""
             confirma = request.form.get("confirmar_senha") or ""
@@ -507,8 +551,8 @@ def register_routes(app):
             if not alvo:
                 register_failed_login(identificador)
                 flash(
-                    "Código inválido ou expirado. Gere um novo no servidor com "
-                    "“python app.py recuperar-senha <usuario>”.",
+                    "Código inválido ou expirado. Solicite um novo pelo botão acima "
+                    "(ele é enviado ao terminal do servidor).",
                     "danger",
                 )
                 return render_template("recuperar.html")

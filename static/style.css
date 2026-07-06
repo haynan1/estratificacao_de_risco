@@ -1071,11 +1071,20 @@ td .empty-state { padding: 2rem 1rem; }
   .users-card-head { padding: 1rem; }
   .users-table { min-width: 680px; }
   .users-reset .form-control { width: 160px; max-width: 160px; }
+  .recovery-command { grid-template-columns: 1fr; }
+}
+
+@media (max-height: 760px) {
+  .login-shell,
+  .setup-shell {
+    place-items: start center;
+  }
 }
 
 /* ---------- Login ---------- */
 .login-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--brand) 22%, transparent), transparent 34rem),
     var(--page-bg);
@@ -1112,9 +1121,75 @@ td .empty-state { padding: 2rem 1rem; }
   margin: 0;
 }
 
+.recovery-shell {
+  align-items: start;
+  padding-block: 1rem;
+}
+.recovery-card {
+  width: min(100%, 460px);
+  padding: 1.55rem;
+}
+.recovery-card .login-mark {
+  margin-bottom: 0.9rem;
+}
+.recovery-card h1 {
+  font-size: 1.35rem;
+}
+.recovery-card > p {
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.recovery-step {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-1) 84%, var(--surface-2));
+}
+.recovery-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.1rem;
+}
+.recovery-step-head span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--brand-faint);
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.recovery-step-head strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+.recovery-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+.recovery-step .setup-field--key {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.recovery-step.setup-form {
+  gap: 0.85rem;
+}
+.recovery-back {
+  text-align: center;
+}
+
 /* ---------- Configuração inicial (setup) ---------- */
 .setup-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brand) 20%, transparent), transparent 38rem),
     radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 40rem),
