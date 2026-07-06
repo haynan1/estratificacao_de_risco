@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="pt-br" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Configuração inicial · Estratificação de Risco</title>
+    <script>
+      const savedTheme = localStorage.getItem("theme") || "dark";
+      document.documentElement.setAttribute("data-bs-theme", savedTheme);
+    </script>
+    <link href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260706-setup') }}">
+  </head>
+  {% set tem_erros = get_flashed_messages() | length > 0 %}
+  <body class="setup-page">
+    <main class="setup-shell">
+      <section class="setup-card" data-start-step="{{ 2 if tem_erros or username else 1 }}">
+
+        <!-- Coluna de contexto: marca, progresso e garantias -->
+        <aside class="setup-rail">
+          <div class="brand-mark setup-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>
+              <path d="M3.5 12.4h4l1.6-3.2 3 6 1.6-2.8h4.8"/>
+            </svg>
+          </div>
+          <p class="setup-kicker">Estratificação de Risco</p>
+          <h1 class="setup-rail-title">Vamos preparar o sistema para a sua unidade.</h1>
+          <p class="setup-rail-sub">Leva menos de um minuto. Você só faz isto uma vez.</p>
+
+          <ol class="setup-steps" aria-label="Etapas da configuração">
+            <li class="setup-step" data-step-dot="1">
+              <span class="setup-step-num">1</span>
+              <span class="setup-step-txt"><strong>Boas-vindas</strong><small>O que é este sistema</small></span>
+            </li>
+            <li class="setup-step" data-step-dot="2">
+              <span class="setup-step-num">2</span>
+              <span class="setup-step-txt"><strong>Conta de administrador</strong><small>Seu acesso principal</small></span>
+            </li>
+          </ol>
+
+          <ul class="setup-assurances" aria-label="Garantias">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+              <span>Funciona <strong>offline</strong>, na rede local da unidade. Nada sai para a internet.</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Dados de pacientes protegidos por login e trilha de auditoria (LGPD).</span>
+            </li>
+          </ul>
+        </aside>
+
+        <!-- Coluna de conteúdo -->
+        <div class="setup-body">
+
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              {% for category, message in messages %}
+                <div class="toast-flash toast-{{ category }}" role="alert">
+                  <span class="toast-dot" aria-hidden="true"></span>
+                  <span class="toast-msg">{{ message }}</span>
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+
+          <!-- Passo 1 — Boas-vindas -->
+          <section class="setup-panel" data-step-panel="1">
+            <p class="setup-eyebrow">Passo 1 de 2 · Boas-vindas</p>
+            <h2 class="setup-title">Bem-vindo(a) à primeira execução</h2>
+            <p class="setup-lead">
+              Este é o sistema de <strong>Estratificação de Risco</strong> da sua unidade. Ele organiza,
+              classifica e acompanha o risco de <strong>pacientes crônicos</strong> e <strong>gestantes</strong>,
+              e calcula o escore <strong>PREVENT</strong> cardiovascular — tudo em um só lugar.
+            </p>
+
+            <div class="setup-feature-grid">
+              <div class="setup-feature">
+                <div class="setup-feature-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8L12 22l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg></div>
+                <strong>Crônicos & PREVENT</strong>
+                <span>Classificação de risco e cálculo cardiovascular automáticos.</span>
+              </div>
+              <div class="setup-feature">
+                <div class="setup-feature-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0-8.7 6.7 2 2 0 0 0 0 4.6A9 9 0 0 0 20.7 14.3a2 2 0 0 0 0-4.6A9 9 0 0 0 12 3Z"/><path d="M9 11.5h.01M15 11.5h.01"/></svg></div>
+                <strong>Gestantes</strong>
+                <span>Acompanhamento de risco gestacional e datas importantes.</span>
+              </div>
+              <div class="setup-feature">
+                <div class="setup-feature-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5a1.5 1.5 0 0 0 1.5 1.5H21"/><rect x="7" y="11" width="3" height="6" rx="0.8"/><rect x="12" y="7" width="3" height="10" rx="0.8"/></svg></div>
+                <strong>Relatórios & Backup</strong>
+                <span>Exportação em Excel/PDF e cópia de segurança do banco.</span>
+              </div>
+            </div>
+
+            <div class="setup-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>
+              <p>
+                Só falta <strong>uma coisa</strong> para começar: criar a <strong>conta de administrador</strong>.
+                É com ela que você entra no sistema, cadastra os agentes de saúde (ACS) e libera acesso à sua equipe.
+              </p>
+            </div>
+
+            <div class="setup-note setup-note--key">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-3.4 3.4a5.5 5.5 0 1 1-2-2Z"/><circle cx="8.5" cy="15.5" r="1"/><path d="m15.6 7.4 2.9 2.9M11.5 11.5l4-4"/></svg>
+              <p>
+                Por segurança, você vai precisar do <strong>código de segurança</strong> que apareceu na
+                <strong>janela do terminal</strong> onde o sistema foi iniciado (algo como <code>AB7K-3XM2</code>).
+                Ele garante que só quem tem acesso ao servidor conclui a configuração — deixe essa janela à mão.
+              </p>
+            </div>
+
+            <div class="setup-actions">
+              <span class="setup-actions-hint">Nenhum dado foi criado ainda.</span>
+              <button type="button" class="btn btn-primary setup-next" data-goto-step="2">
+                Começar
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+          </section>
+
+          <!-- Passo 2 — Conta de administrador -->
+          <section class="setup-panel" data-step-panel="2">
+            <p class="setup-eyebrow">Passo 2 de 2 · Conta de administrador</p>
+            <h2 class="setup-title">Crie o seu acesso principal</h2>
+            <p class="setup-lead">
+              Esta é a conta com todos os poderes: gerenciar usuários, ver a auditoria e fazer backup.
+              Guarde estas credenciais em local seguro — <strong>não há “esqueci a senha” automático</strong>
+              num sistema offline.
+            </p>
+
+            <form method="post" class="setup-form" autocomplete="off" novalidate>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+              <div class="setup-field setup-field--key">
+                <label class="form-label" for="codigo">Código de segurança</label>
+                <input class="form-control setup-code-input" id="codigo" name="codigo"
+                       value="{{ codigo or '' }}" placeholder="Ex.: AB7K-3XM2" required
+                       autocomplete="off" autocapitalize="characters" spellcheck="false"
+                       inputmode="text" maxlength="12">
+                <span class="setup-hint">
+                  Copie da <strong>janela do terminal</strong> onde o sistema foi iniciado. Não diferencia
+                  maiúsculas de minúsculas.
+                </span>
+              </div>
+
+              <div class="setup-field">
+                <label class="form-label" for="nome">Seu nome</label>
+                <input class="form-control" id="nome" name="nome" value="{{ nome or '' }}"
+                       placeholder="Ex.: Maria Silva" autocomplete="name">
+                <span class="setup-hint">Aparece no topo do sistema. Pode ser só o primeiro nome.</span>
+              </div>
+
+              <div class="setup-field">
+                <label class="form-label" for="username">Usuário (login)</label>
+                <input class="form-control" id="username" name="username" value="{{ username or '' }}"
+                       placeholder="Ex.: maria" required autocomplete="username" autocapitalize="none" spellcheck="false">
+                <span class="setup-hint">É o que você digita para entrar. Sem espaços, tudo minúsculo de preferência.</span>
+              </div>
+
+              <div class="setup-field">
+                <label class="form-label" for="senha">Senha</label>
+                <div class="setup-pass">
+                  <input class="form-control" id="senha" name="senha" type="password"
+                         placeholder="Ao menos 8 caracteres" required autocomplete="new-password"
+                         data-pass minlength="8">
+                  <button type="button" class="setup-pass-toggle" data-pass-toggle aria-label="Mostrar ou ocultar a senha">
+                    <svg class="ico-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="ico-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-2.16 2.94M6.1 6.1A13.3 13.3 0 0 0 2 11s3.5 7 10 7a9 9 0 0 0 3.9-.88"/><path d="M1 1l22 22"/></svg>
+                  </button>
+                </div>
+                <div class="setup-meter" data-meter aria-hidden="true"><span></span></div>
+                <ul class="setup-rules" aria-live="polite">
+                  <li data-rule="len"><span class="setup-rule-mark"></span>Pelo menos 8 caracteres</li>
+                  <li data-rule="case"><span class="setup-rule-mark"></span>Misture letras maiúsculas e minúsculas</li>
+                  <li data-rule="num"><span class="setup-rule-mark"></span>Inclua ao menos um número</li>
+                </ul>
+              </div>
+
+              <div class="setup-field">
+                <label class="form-label" for="confirmar_senha">Confirme a senha</label>
+                <input class="form-control" id="confirmar_senha" name="confirmar_senha" type="password"
+                       placeholder="Digite a senha novamente" required autocomplete="new-password" data-confirm>
+                <span class="setup-hint setup-match" data-match></span>
+              </div>
+
+              <div class="setup-actions">
+                <button type="button" class="btn btn-outline-secondary setup-back" data-goto-step="1">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+                  Voltar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  Concluir configuração
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                </button>
+              </div>
+            </form>
+          </section>
+
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const card = document.querySelector(".setup-card");
+        const panels = Array.from(document.querySelectorAll("[data-step-panel]"));
+        const dots = Array.from(document.querySelectorAll("[data-step-dot]"));
+
+        function show(step) {
+          panels.forEach((p) => p.classList.toggle("is-active", p.dataset.stepPanel === String(step)));
+          dots.forEach((d) => {
+            const n = Number(d.dataset.stepDot);
+            d.classList.toggle("is-active", n === step);
+            d.classList.toggle("is-done", n < step);
+          });
+          card.scrollTo ? card.scrollTo({ top: 0, behavior: "smooth" }) : null;
+          if (step === 2) {
+            const first = document.getElementById("codigo");
+            if (first) setTimeout(() => first.focus(), 220);
+          }
+        }
+
+        document.querySelectorAll("[data-goto-step]").forEach((btn) =>
+          btn.addEventListener("click", () => show(Number(btn.dataset.gotoStep)))
+        );
+
+        // Mostrar/ocultar senha
+        const passInput = document.querySelector("[data-pass]");
+        const toggle = document.querySelector("[data-pass-toggle]");
+        if (toggle && passInput) {
+          toggle.addEventListener("click", () => {
+            const isPwd = passInput.type === "password";
+            passInput.type = isPwd ? "text" : "password";
+            toggle.classList.toggle("is-visible", isPwd);
+          });
+        }
+
+        // Força da senha + checklist
+        const rules = {
+          len: (v) => v.length >= 8,
+          case: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v),
+          num: (v) => /\d/.test(v),
+        };
+        const meter = document.querySelector("[data-meter]");
+        const confirmInput = document.querySelector("[data-confirm]");
+        const matchEl = document.querySelector("[data-match]");
+
+        function evaluate() {
+          const v = passInput ? passInput.value : "";
+          let score = 0;
+          Object.keys(rules).forEach((key) => {
+            const ok = rules[key](v);
+            if (ok) score++;
+            const li = document.querySelector('[data-rule="' + key + '"]');
+            if (li) li.classList.toggle("is-ok", ok);
+          });
+          if (v.length >= 12 && score === 3) score = 4;
+          if (meter) meter.dataset.score = v ? String(score) : "0";
+          if (confirmInput && confirmInput.value) {
+            const same = confirmInput.value === v;
+            matchEl.textContent = same ? "As senhas coincidem." : "As senhas ainda não coincidem.";
+            matchEl.classList.toggle("is-ok", same);
+            matchEl.classList.toggle("is-bad", !same);
+          } else if (matchEl) {
+            matchEl.textContent = "";
+            matchEl.classList.remove("is-ok", "is-bad");
+          }
+        }
+        if (passInput) passInput.addEventListener("input", evaluate);
+        if (confirmInput) confirmInput.addEventListener("input", evaluate);
+
+        show(Number(card.dataset.startStep) || 1);
+        evaluate();
+      })();
+    </script>
+  </body>
+</html>

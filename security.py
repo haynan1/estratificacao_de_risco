@@ -5,23 +5,22 @@ mantendo a promessa de funcionar offline, em rede local fechada, após instalado
 """
 
 import hmac
-import logging
 import os
 import secrets
 import time
 from functools import wraps
 from pathlib import Path
 
-from flask import abort, flash, g, redirect, request, session, url_for
+from flask import abort, current_app, flash, g, redirect, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from models import Usuario, db
 
-logger = logging.getLogger(__name__)
-
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 PUBLIC_ENDPOINTS = {"login", "static", "versao"}
+# Endpoints do assistente de configuração inicial (só acessíveis antes do setup).
+SETUP_ENDPOINTS = {"setup"}
 SENHA_MIN = 8
 
 # Throttle de login em memória (suficiente para uso em rede local de uma unidade).
@@ -141,14 +140,124 @@ def contar_admins_ativos():
 
 
 # ----------------------------------------------------------------------------
+# Código de segurança da configuração inicial
+# ----------------------------------------------------------------------------
+# A rota /setup é gravável sem autenticação enquanto o primeiro admin não existe.
+# Em rede local (deploy com --host=0.0.0.0), qualquer um poderia chegar primeiro
+# e criar o administrador. O código de segurança fecha essa janela: ele é gerado
+# no primeiro boot, impresso apenas no console do servidor e exigido no /setup —
+# provando que quem configura tem acesso à máquina, não só à rede.
+#
+# Alfabeto sem caracteres ambíguos (0/O, 1/I/L) para leitura confiável no console.
+SETUP_TOKEN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+SETUP_TOKEN_GROUPS = 2
+SETUP_TOKEN_GROUP_LEN = 4
+
+
+def _setup_token_path(instance_path):
+    return Path(instance_path) / "setup_token"
+
+
+def _novo_codigo():
+    bruto = "".join(
+        secrets.choice(SETUP_TOKEN_ALPHABET)
+        for _ in range(SETUP_TOKEN_GROUPS * SETUP_TOKEN_GROUP_LEN)
+    )
+    partes = [
+        bruto[i : i + SETUP_TOKEN_GROUP_LEN]
+        for i in range(0, len(bruto), SETUP_TOKEN_GROUP_LEN)
+    ]
+    return "-".join(partes)
+
+
+def gerar_setup_token(instance_path):
+    """Retorna o código de segurança do setup, criando e persistindo se ausente.
+
+    Persiste em instance/setup_token para sobreviver a reinícios do servidor
+    durante a configuração. Removido quando o setup conclui (clear_setup_token).
+    """
+    path = _setup_token_path(instance_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        existente = path.read_text(encoding="utf-8").strip()
+        if existente:
+            return existente
+    token = _novo_codigo()
+    path.write_text(token, encoding="utf-8")
+    return token
+
+
+def setup_token_valido(instance_path, enviado):
+    """Compara o código informado com o persistido, em tempo constante."""
+    path = _setup_token_path(instance_path)
+    if not path.exists():
+        return False
+    atual = path.read_text(encoding="utf-8").strip()
+    if not atual:
+        return False
+    normalizado = str(enviado or "").strip().upper().replace(" ", "")
+    return hmac.compare_digest(normalizado, atual.upper())
+
+
+def clear_setup_token(instance_path):
+    """Remove o código após a conclusão do setup — deixa de ser válido."""
+    path = _setup_token_path(instance_path)
+    if path.exists():
+        path.unlink()
+
+
+def setup_pendente():
+    """Primeira execução: ainda não existe nenhum administrador ativo.
+
+    Enquanto isto for verdadeiro, o sistema conduz o operador ao assistente de
+    configuração inicial (/setup) em vez de exigir edição manual do .env.
+
+    Latch de mão única em app.config: uma vez que exista um admin ativo, o
+    sistema jamais volta a "pendente" (o último admin ativo não pode ser
+    removido/desativado/rebaixado). Isso evita um COUNT por requisição no
+    guard, que roda no before_request de toda rota.
+    """
+    if current_app.config.get("SETUP_DONE"):
+        return False
+    if contar_admins_ativos() == 0:
+        return True
+    current_app.config["SETUP_DONE"] = True
+    return False
+
+
+def criar_admin_inicial(username, nome, senha):
+    """Cria o administrador da primeira execução, a partir do assistente /setup.
+
+    Guarda de segurança essencial: só opera enquanto o setup está pendente. Uma
+    vez que exista qualquer admin ativo, nunca mais cria — impede que a rota de
+    setup seja reaberta para forjar um novo administrador.
+    """
+    if not setup_pendente():
+        return None
+    user = Usuario(
+        username=username,
+        nome=(nome or "").strip() or "Administrador",
+        papel="admin",
+        password_hash=hash_senha(senha),
+        ativo=True,
+    )
+    db.session.add(user)
+    db.session.commit()
+    current_app.config["SETUP_DONE"] = True
+    return user
+
+
+# ----------------------------------------------------------------------------
 # Seed do administrador
 # ----------------------------------------------------------------------------
 def ensure_admin_user():
-    """Garante que sempre exista um administrador ativo.
+    """Semeia o admin a partir de variáveis de ambiente (instalação automatizada).
 
-    Cria o admin apenas na primeira execução (nunca sobrescreve a senha de um
-    usuário já existente). Se o admin já existe, apenas assegura papel/ativo —
-    isso também promove corretamente um banco migrado de versões anteriores.
+    Caminho opcional, para quem provisiona sem interação (ADMIN_USER/ADMIN_PASSWORD).
+    Sem uma senha explícita em ADMIN_PASSWORD, nada é criado: o assistente /setup
+    assume a criação do primeiro administrador, com senha escolhida pelo operador.
+    Nunca sobrescreve a senha de um usuário já existente. Quando o admin já existe,
+    apenas assegura papel/ativo — promovendo corretamente bancos de versões antigas.
     """
     username = os.getenv("ADMIN_USER", "admin").strip() or "admin"
     password = os.getenv("ADMIN_PASSWORD", "").strip()
@@ -170,8 +279,8 @@ def ensure_admin_user():
         return
 
     if not password:
-        password = secrets.token_urlsafe(12)
-        logger.warning("Admin '%s' criado com senha temporaria: %s", username, password)
+        # Sem credencial em ambiente: a tela /setup conduz a configuração inicial.
+        return
     db.session.add(
         Usuario(
             username=username,
@@ -198,6 +307,18 @@ def register_security(app):
         if endpoint == "static" or endpoint is None:
             return None
         get_csrf_token()  # garante token na sessão para render dos formulários
+
+        # Primeira execução: conduz todo o tráfego ao assistente de configuração.
+        if setup_pendente():
+            if endpoint in SETUP_ENDPOINTS or endpoint == "versao":
+                if request.method not in SAFE_METHODS and not csrf_is_valid():
+                    abort(400, description="Token CSRF inválido ou ausente.")
+                return None
+            return redirect(url_for("setup"))
+
+        # Setup já concluído: o assistente não pode ser reaberto.
+        if endpoint in SETUP_ENDPOINTS:
+            return redirect(url_for("login"))
 
         uid = session.get("user_id")
         user = db.session.get(Usuario, uid) if uid else None

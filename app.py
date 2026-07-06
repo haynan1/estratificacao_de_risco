@@ -44,9 +44,12 @@ from security import (
     SENHA_MIN,
     admin_required,
     clear_failed_logins,
+    clear_setup_token,
     contar_admins_ativos,
+    criar_admin_inicial,
     current_user,
     ensure_admin_user,
+    gerar_setup_token,
     hash_senha,
     login_is_blocked,
     register_failed_login,
@@ -54,6 +57,8 @@ from security import (
     resolve_secret_key,
     senha_confere,
     senha_valida,
+    setup_pendente,
+    setup_token_valido,
 )
 from utils import (
     cpf_valido,
@@ -75,6 +80,26 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+logger = logging.getLogger("estratificacao")
+
+
+def _log_banner_setup(token):
+    """Imprime o código de segurança da configuração inicial no console do servidor.
+
+    Nível WARNING para sobressair no log e não ser filtrado por INFO. É o único
+    canal do código: ele nunca trafega pela rede antes de o operador informá-lo.
+    """
+    linhas = [
+        "",
+        "============================================================",
+        "  CONFIGURACAO INICIAL PENDENTE",
+        "  1. Abra no navegador:      http://<endereco-do-servidor>:5000/setup",
+        f"  2. Codigo de seguranca:    {token}",
+        "     (informe este codigo na tela para criar o administrador)",
+        "============================================================",
+        "",
+    ]
+    logger.warning("\n".join(linhas))
 
 
 def create_app():
@@ -114,6 +139,9 @@ def create_app():
         Usuario.query.filter(Usuario.papel.is_(None)).update({Usuario.papel: "padrao"})
         db.session.commit()
         ensure_admin_user()
+        # Primeira execução: emite o código de segurança do assistente /setup.
+        if setup_pendente():
+            _log_banner_setup(gerar_setup_token(app.instance_path))
 
     register_security(app)
     register_routes(app)
@@ -355,6 +383,64 @@ def register_routes(app):
     @app.route("/versao")
     def versao():
         return f"Estratificacao de Risco - versao {APP_VERSION}", 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+    @app.route("/setup", methods=["GET", "POST"])
+    def setup():
+        # Defesa em profundidade: mesmo que o guard falhe, nunca configura duas vezes.
+        if not setup_pendente():
+            return redirect(url_for("login"))
+        nome = (request.form.get("nome") or "").strip()
+        username = (request.form.get("username") or "").strip()
+        codigo = (request.form.get("codigo") or "").strip()
+        if request.method == "POST":
+            senha = request.form.get("senha") or ""
+            confirma = request.form.get("confirmar_senha") or ""
+
+            # Trava de força-bruta no código de segurança (endpoint sem auth).
+            identificador = f"{request.remote_addr}|setup"
+            if login_is_blocked(identificador):
+                flash("Muitas tentativas. Aguarde alguns minutos e tente novamente.", "danger")
+                return render_template("setup.html", nome=nome, username=username, codigo="")
+            if not setup_token_valido(app.instance_path, codigo):
+                register_failed_login(identificador)
+                flash(
+                    "Código de segurança inválido. Confira o código exibido no console do servidor.",
+                    "danger",
+                )
+                return render_template("setup.html", nome=nome, username=username, codigo="")
+
+            erros = []
+            if not username:
+                erros.append("Informe um nome de usuário para o login.")
+            elif Usuario.query.filter(
+                db.func.lower(Usuario.username) == username.lower()
+            ).first():
+                erros.append(f"O usuário “{username}” já existe. Escolha outro.")
+            if not senha_valida(senha):
+                erros.append(f"A senha deve ter ao menos {SENHA_MIN} caracteres.")
+            if senha != confirma:
+                erros.append("A confirmação de senha não corresponde à senha digitada.")
+            if erros:
+                for erro in erros:
+                    flash(erro, "warning")
+                return render_template("setup.html", nome=nome, username=username, codigo=codigo)
+
+            admin = criar_admin_inicial(username, nome, senha)
+            if admin is None:
+                flash("O sistema já foi configurado. Faça login normalmente.", "warning")
+                return redirect(url_for("login"))
+            clear_failed_logins(identificador)
+            clear_setup_token(app.instance_path)
+            registrar_auditoria(
+                "setup", "sistema", admin.id, f"administrador inicial: {admin.username}"
+            )
+            db.session.commit()
+            flash(
+                "Configuração concluída! Entre com o usuário e a senha que você acabou de criar.",
+                "success",
+            )
+            return redirect(url_for("login"))
+        return render_template("setup.html", nome=nome, username=username, codigo=codigo)
 
     @app.route("/login", methods=["GET", "POST"])
     def login():

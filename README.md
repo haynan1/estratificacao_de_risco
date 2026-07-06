@@ -87,43 +87,44 @@ Nao e preciso instalar mais nada depois — o sistema nao depende da internet pa
 
 ### Passo 6 — Configurar o arquivo .env
 
-O `.env` guarda a senha do administrador e a chave de seguranca.
+O `.env` guarda apenas configuracoes tecnicas. **Voce nao precisa definir usuario
+ou senha aqui** — isso e feito na tela de configuracao inicial (Passo 8).
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Abra o `.env` no VS Code (ou Bloco de Notas) e ajuste:
-
-```text
-SECRET_KEY=coloque_uma_chave_longa_e_aleatoria_aqui
-ADMIN_USER=admin
-ADMIN_PASSWORD=defina_uma_senha_forte
-DATABASE_URL=sqlite:///estratificacao_risco.db
-```
+Pode deixar o `.env` como veio. Se quiser, ajuste:
 
 - `SECRET_KEY`: qualquer texto longo e aleatorio. Se deixar em branco, o sistema
   gera uma automaticamente e guarda em `instance/secret_key`.
-- `ADMIN_USER` / `ADMIN_PASSWORD`: o primeiro login do administrador. Use uma senha
-  forte (minimo 8 caracteres).
 - `DATABASE_URL`: pode deixar como esta.
 
-### Passo 7 — Primeira execucao (cria o banco e o admin)
+### Passo 7 — Primeira execucao (cria o banco)
 
 ```powershell
 python app.py
 ```
 
-Na primeira vez o sistema cria sozinho:
+Na primeira vez o sistema cria sozinho o banco de dados SQLite e as tabelas
+(pacientes, gestantes, agentes, usuarios, auditoria).
 
-- o banco de dados SQLite em `instance/estratificacao_risco.db`;
-- as tabelas (pacientes, gestantes, agentes, usuarios, auditoria);
-- o usuario administrador definido no `.env`.
+Como ainda nao existe administrador, o terminal exibe um **codigo de seguranca**,
+assim:
 
-O terminal vai mostrar algo como `Running on http://127.0.0.1:5000`.
-Deixe esse terminal aberto — enquanto ele estiver rodando, o sistema esta no ar.
+```text
+============================================================
+  CONFIGURACAO INICIAL PENDENTE
+  1. Abra no navegador:      http://<endereco-do-servidor>:5000/setup
+  2. Codigo de seguranca:    AB7K-3XM2
+     (informe este codigo na tela para criar o administrador)
+============================================================
+```
 
-### Passo 8 — Primeiro acesso
+Anote esse codigo — ele so aparece no terminal do servidor e sera pedido na tela.
+Deixe esse terminal aberto: enquanto estiver rodando, o sistema esta no ar.
+
+### Passo 8 — Configuracao inicial (cria o administrador)
 
 Abra o navegador e acesse:
 
@@ -131,8 +132,16 @@ Abra o navegador e acesse:
 http://127.0.0.1:5000
 ```
 
-Entre com o `ADMIN_USER` e `ADMIN_PASSWORD` do `.env`. Pronto: o sistema esta
-instalado e funcionando neste computador.
+O sistema abre sozinho o **assistente de configuracao inicial**. Ele explica o
+sistema e pede o **codigo de seguranca** do terminal, seguido do nome, usuario e
+senha do administrador. Ao concluir, o assistente se encerra (nao aparece de novo)
+e voce entra com o usuario e a senha que acabou de criar.
+
+> **Por que o codigo?** Enquanto nao ha administrador, a tela de configuracao fica
+> acessivel na rede local. O codigo garante que so quem tem acesso ao servidor
+> (onde o codigo e exibido) consegue criar a conta de administrador.
+
+Pronto: o sistema esta instalado e funcionando neste computador.
 
 Para conferir a versao que esta rodando a qualquer momento, acesse
 `http://127.0.0.1:5000/versao`.
@@ -199,7 +208,7 @@ http://192.168.0.25:5000
 
 ## Primeiro login e criacao de usuarios
 
-1. Entre como administrador (usuario/senha do `.env`).
+1. Entre como administrador (o usuario e a senha que voce criou na configuracao inicial).
 2. No menu lateral, va em **Usuarios** (so aparece para administradores).
 3. Em **Novo usuario**, cadastre cada profissional com login, senha inicial e papel:
    - **Administrador**: gerencia usuarios e ve a auditoria.
@@ -273,9 +282,10 @@ Confirme: (1) mesmo Wi-Fi; (2) rodando com Waitress `--host=0.0.0.0`; (3) regra 
 firewall criada; (4) IP correto no `ipconfig`.
 
 **Esqueci a senha do administrador**
-A senha do `.env` so vale na primeira execucao. Para redefinir, peca a outro
-administrador para resetar em **Usuarios**. Se nao houver outro admin, remova o
-usuario direto no banco e reinicie para recria-lo pelo `.env`.
+Peca a outro administrador para resetar em **Usuarios**. Se nao houver outro admin,
+apague o arquivo `instance/estratificacao_risco.db` (perde os dados) ou remova o
+usuario admin direto no banco — ao reiniciar sem nenhum admin, o assistente de
+configuracao inicial roda de novo e emite um novo codigo de seguranca no terminal.
 
 ---
 
