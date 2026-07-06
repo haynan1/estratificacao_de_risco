@@ -69,7 +69,24 @@ class PacienteCronico(db.Model):
     data_ult_hba1c = db.Column(db.Date)
     ultima_pa = db.Column(db.String(20))
     pas = db.Column(db.Integer)
+    pad = db.Column(db.Integer)
     data_ult_pa = db.Column(db.Date)
+
+    # Estratificação conforme notas técnicas SES-GO (DM: Res. 1193/2025; HAS: NT 11/2021).
+    pre_diabetes = db.Column(db.Boolean, default=False, nullable=False)
+    dm1 = db.Column(db.Boolean, default=False, nullable=False)
+    autocuidado_suficiente = db.Column(db.Boolean, default=True, nullable=False)
+    controle_pressorico_adequado = db.Column(db.Boolean, default=True, nullable=False)
+    complicacao_cronica = db.Column(db.Boolean, default=False, nullable=False)
+    internacao_aguda_12m = db.Column(db.Boolean, default=False, nullable=False)
+    doenca_aterosclerotica = db.Column(db.Boolean, default=False, nullable=False)
+    drc = db.Column(db.Boolean, default=False, nullable=False)
+    tabagismo = db.Column(db.Boolean, default=False, nullable=False)
+    dislipidemia = db.Column(db.Boolean, default=False, nullable=False)
+    dcv_familiar_precoce = db.Column(db.Boolean, default=False, nullable=False)
+    obesidade = db.Column(db.Boolean, default=False, nullable=False)
+    # Faixa do Escore de Risco Cardiovascular (calculadora estadual): baixo/intermediario/alto.
+    ercv_faixa = db.Column(db.String(20))
 
     avaliacao_prevent = db.relationship(
         "AvaliacaoPrevent",

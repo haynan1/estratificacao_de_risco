@@ -38,8 +38,22 @@
     </section>
 
     <section class="tab-pane fade" id="clinicos">
+      <p class="text-secondary mb-1">Condição e fatores para a estratificação (Notas Técnicas SES-GO).</p>
       <div class="row g-3">
-        {% for name, label in [("has","HAS"),("dm2","DM2"),("dcv_at_sintomatica","DCV At. sintomática"),("loa","LOA"),("ateroesclerose_subclinica","Ateroesclerose subclínica"),("emulti","eMulti")] %}
+        {% for name, label in [
+          ("has","HAS"),("dm2","DM tipo 2"),("dm1","DM tipo 1"),("pre_diabetes","Pré-diabetes"),
+          ("dcv_at_sintomatica","DCV aterosclerótica sintomática"),
+          ("doenca_aterosclerotica","Doença aterosclerótica (IAM/AVC/obstrução ≥50%)"),
+          ("loa","LOA (lesão de órgão-alvo)"),("drc","Doença renal crônica"),
+          ("ateroesclerose_subclinica","Ateroesclerose subclínica"),
+          ("complicacao_cronica","Complicação crônica do DM"),
+          ("internacao_aguda_12m","Internação por complicação aguda (12m)"),
+          ("tabagismo","Tabagismo"),("dislipidemia","Dislipidemia"),
+          ("dcv_familiar_precoce","DCV precoce na família"),("obesidade","Obesidade (IMC ≥ 30)"),
+          ("autocuidado_suficiente","Autocuidado suficiente"),
+          ("controle_pressorico_adequado","Controle pressórico adequado"),
+          ("emulti","eMulti")
+        ] %}
           <div class="col-md-4">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" name="{{ name }}" id="{{ name }}" {% if paciente|attr(name) %}checked{% endif %}>
@@ -47,10 +61,17 @@
             </div>
           </div>
         {% endfor %}
-        <div class="col-md-3"><label class="form-label">Condições alto risco</label><input class="form-control" type="number" name="condicoes_alto_risco" value="{{ paciente.condicoes_alto_risco or 0 }}"></div>
-        <div class="col-md-3"><label class="form-label">Eventos prévios</label><input class="form-control" type="number" name="num_eventos_previos" value="{{ paciente.num_eventos_previos or 0 }}"></div>
+        <div class="col-md-4">
+          <label class="form-label">Faixa ERCV <span class="text-faint">(calculadora estadual)</span></label>
+          <select class="form-select" name="ercv_faixa">
+            <option value="" {% if not paciente.ercv_faixa %}selected{% endif %}>— não informado —</option>
+            <option value="baixo" {% if paciente.ercv_faixa == 'baixo' %}selected{% endif %}>Baixo (&lt; 5%)</option>
+            <option value="intermediario" {% if paciente.ercv_faixa == 'intermediario' %}selected{% endif %}>Intermediário</option>
+            <option value="alto" {% if paciente.ercv_faixa == 'alto' %}selected{% endif %}>Alto</option>
+          </select>
+        </div>
         <div class="col-md-3"><label class="form-label">Especialista</label><input class="form-control" name="especialista" value="{{ paciente.especialista or '' }}"></div>
-        <div class="col-md-3"><label class="form-label">Risco estratificado</label><input class="form-control" name="risco_estratificado" value="{{ 'Calcular Prevent' if (paciente.risco_estratificado or '')|lower == 'calcular prevent' else paciente.risco_estratificado or '' }}" readonly></div>
+        <div class="col-md-3"><label class="form-label">Risco estratificado</label><input class="form-control" name="risco_estratificado" value="{{ paciente.risco_estratificado or '' }}" readonly></div>
         <div class="col-md-6"><label class="form-label">Exames cardiovasculares</label><input class="form-control" name="exames_cardiovasc" value="{{ paciente.exames_cardiovasc or '' }}" readonly></div>
       </div>
     </section>
@@ -59,8 +80,9 @@
       <div class="row g-3">
         <div class="col-md-3"><label class="form-label">Última HbA1c</label><input class="form-control" name="ultima_hba1c" value="{{ paciente.ultima_hba1c or '' }}"></div>
         <div class="col-md-3"><label class="form-label">Data últ. HbA1c</label><input class="form-control" type="date" name="data_ult_hba1c" value="{{ paciente.data_ult_hba1c }}"></div>
-        <div class="col-md-3"><label class="form-label">Última PA</label><input class="form-control" name="ultima_pa" value="{{ paciente.ultima_pa or '' }}"></div>
-        <div class="col-md-3"><label class="form-label">PAS</label><input class="form-control" type="number" name="pas" value="{{ paciente.pas or '' }}" readonly></div>
+        <div class="col-md-3"><label class="form-label">Última PA <span class="text-faint">(ex.: 140/90)</span></label><input class="form-control" name="ultima_pa" value="{{ paciente.ultima_pa or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">PAS</label><input class="form-control" type="number" name="pas" value="{{ paciente.pas or '' }}" readonly></div>
+        <div class="col-md-2"><label class="form-label">PAD</label><input class="form-control" type="number" name="pad" value="{{ paciente.pad or '' }}" readonly></div>
         <div class="col-md-3"><label class="form-label">Data últ. PA</label><input class="form-control" type="date" name="data_ult_pa" value="{{ paciente.data_ult_pa }}"></div>
       </div>
     </section>

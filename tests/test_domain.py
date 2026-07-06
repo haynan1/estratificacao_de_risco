@@ -35,7 +35,8 @@ def make_paciente(**kwargs):
         idade=50, sexo="M", data_nascimento=None,
         dm2=False, has=False, loa=False, dcv_at_sintomatica=False,
         ateroesclerose_subclinica=False, condicoes_alto_risco=0,
-        num_eventos_previos=0, ultima_pa="120x80", pas=120,
+        num_eventos_previos=0, ultima_pa="120x80", pas=120, pad=80,
+        ultima_hba1c=None,
         risco_estratificado=None, exames_cardiovasc=None, avaliacao_prevent=None,
     )
     base.update(kwargs)
@@ -142,37 +143,91 @@ class TestPrevent(unittest.TestCase):
         self.assertEqual(av.risco_cardiovascular_10_anos, "Não aplicável")
 
 
-class TestRiscoCronico(unittest.TestCase):
-    def test_extremo(self):
-        self.assertEqual(d.calculate_cronico_risk(make_paciente(num_eventos_previos=2)), d.RISCO_EXTREMO)
+class TestRiscoCronicoGoias(unittest.TestCase):
+    """Estratificação conforme notas técnicas SES-GO (DM: Res. 1193/2025; HAS: NT 11/2021)."""
+
+    def cls(self, **kw):
+        return d.calculate_cronico_risk(make_paciente(**kw))
+
+    # --- Cascata do DM (Quadro 9) ---
+    def test_dm2_internacao_aguda_muito_alto(self):
+        self.assertEqual(self.cls(dm2=True, internacao_aguda_12m=True), d.RISCO_MUITO_ALTO)
+
+    def test_dm2_aterosclerose_muito_alto(self):
+        self.assertEqual(self.cls(dm2=True, doenca_aterosclerotica=True), d.RISCO_MUITO_ALTO)
+
+    def test_dm1_descontrolado_muito_alto(self):
+        self.assertEqual(self.cls(dm1=True, ultima_hba1c=8.0), d.RISCO_MUITO_ALTO)
+
+    def test_dm1_controlado_alto(self):
+        self.assertEqual(self.cls(dm1=True, ultima_hba1c=7.0), d.RISCO_ALTO)
+
+    def test_dm2_hba1c_alta_alto(self):
+        self.assertEqual(self.cls(dm2=True, ultima_hba1c=8.0), d.RISCO_ALTO)
+
+    def test_dm2_pressao_inadequada_alto(self):
         self.assertEqual(
-            d.calculate_cronico_risk(make_paciente(num_eventos_previos=1, condicoes_alto_risco=2)),
-            d.RISCO_EXTREMO,
+            self.cls(dm2=True, ultima_hba1c=6.8, controle_pressorico_adequado=False), d.RISCO_ALTO
         )
 
-    def test_muito_alto(self):
-        self.assertEqual(d.calculate_cronico_risk(make_paciente(num_eventos_previos=1)), d.RISCO_MUITO_ALTO)
-        self.assertEqual(d.calculate_cronico_risk(make_paciente(condicoes_alto_risco=3)), d.RISCO_MUITO_ALTO)
-        self.assertEqual(d.calculate_cronico_risk(make_paciente(dcv_at_sintomatica=True)), d.RISCO_MUITO_ALTO)
-        self.assertEqual(d.calculate_cronico_risk(make_paciente(dm2=True, loa=True)), d.RISCO_MUITO_ALTO)
-
-    def test_alto_por_ateroesclerose(self):
+    def test_dm2_ercv_alto(self):
         self.assertEqual(
-            d.calculate_cronico_risk(make_paciente(ateroesclerose_subclinica=True)), d.RISCO_ALTO
+            self.cls(dm2=True, ultima_hba1c=6.8, controle_pressorico_adequado=True, ercv_faixa="alto"),
+            d.RISCO_ALTO,
         )
 
-    def test_pendente_prevent_sem_avaliacao(self):
-        self.assertEqual(d.calculate_cronico_risk(make_paciente()), d.PREVENT_STATUS)
+    def test_dm2_controlado_ercv_intermediario_medio(self):
+        self.assertEqual(
+            self.cls(dm2=True, ultima_hba1c=6.8, controle_pressorico_adequado=True,
+                     ercv_faixa="intermediario"),
+            d.RISCO_MEDIO,
+        )
 
-    def test_baixo_com_prevent_baixo(self):
-        av = make_avaliacao(ct=200, hdl=45, pas=140, cr=0.9, risco_cardiovascular_10_anos="3%")
-        pac = make_paciente(avaliacao_prevent=av)
-        self.assertEqual(d.calculate_cronico_risk(pac), d.RISCO_BAIXO)
+    def test_dm2_controlado_sem_ercv_pendente(self):
+        self.assertEqual(
+            self.cls(dm2=True, ultima_hba1c=6.8, controle_pressorico_adequado=True, ercv_faixa=""),
+            d.ERCV_PENDENTE,
+        )
 
-    def test_alto_com_prevent_elevado(self):
-        av = make_avaliacao(ct=250, hdl=35, pas=180, cr=1.2, risco_cardiovascular_10_anos="25%")
-        pac = make_paciente(avaliacao_prevent=av)
-        self.assertEqual(d.calculate_cronico_risk(pac), d.RISCO_ALTO)
+    def test_pre_diabetes_autocuidado_ercv_baixo(self):
+        self.assertEqual(
+            self.cls(pre_diabetes=True, autocuidado_suficiente=True, ercv_faixa="baixo"), d.RISCO_BAIXO
+        )
+
+    def test_pre_diabetes_autocuidado_insuficiente_medio(self):
+        self.assertEqual(
+            self.cls(pre_diabetes=True, autocuidado_suficiente=False), d.RISCO_MEDIO
+        )
+
+    def test_pre_diabetes_sem_ercv_pendente(self):
+        self.assertEqual(
+            self.cls(pre_diabetes=True, autocuidado_suficiente=True, ercv_faixa=""), d.ERCV_PENDENTE
+        )
+
+    # --- Matriz da HAS (Quadro 3) ---
+    def test_has_loa_alto(self):
+        self.assertEqual(self.cls(has=True, sexo="F", loa=True), d.RISCO_ALTO)
+
+    def test_has_pre_sem_fatores_sem_adicional(self):
+        self.assertEqual(
+            self.cls(has=True, sexo="F", idade=40, pas=132, pad=86), d.RISCO_SEM_ADICIONAL
+        )
+
+    def test_has_estagio1_sem_fatores_baixo(self):
+        self.assertEqual(self.cls(has=True, sexo="F", idade=40, pas=145, pad=92), d.RISCO_BAIXO)
+
+    def test_has_estagio3_sem_fatores_alto(self):
+        self.assertEqual(self.cls(has=True, sexo="F", idade=40, pas=185, pad=115), d.RISCO_ALTO)
+
+    def test_has_estagio1_tres_fatores_alto(self):
+        self.assertEqual(
+            self.cls(has=True, sexo="F", idade=40, pas=145, pad=92,
+                     tabagismo=True, dislipidemia=True, obesidade=True),
+            d.RISCO_ALTO,
+        )
+
+    def test_sem_dm_sem_has_baixo(self):
+        self.assertEqual(self.cls(sexo="F"), d.RISCO_BAIXO)
 
 
 class TestGestante(unittest.TestCase):
@@ -201,6 +256,53 @@ class TestGestante(unittest.TestCase):
         )
         d.recalculate_gestante(g)
         self.assertEqual(g.classificacao_risco, "RISCO HABITUAL")
+
+    # --- NT 6/2024 SES-GO: idade e faixas de IMC ---
+    def _gestante(self, nascimento, peso, estatura):
+        return SimpleNamespace(
+            data_nascimento=nascimento, peso=peso, estatura=estatura, grupo="Gestante",
+            criterio_alto_risco=False, hac_descontrole=False, dm_descontrole=False,
+            criterio_risco_intermediario=False, primeiro_usg=None, dum=None,
+            ig_primeiro_usg=None, ig_atual_semanas=None, ig_semanas=None, dpp=None,
+            idade=None, imc=None, classificacao_risco=None, nome_paciente="Teste",
+        )
+
+    def _classificar(self, nascimento, peso=60, estatura=165):
+        g = self._gestante(nascimento, peso, estatura)
+        d.recalculate_gestante(g)
+        return g.classificacao_risco
+
+    def test_idade_38_e_habitual(self):
+        # 15 a 40 anos é risco habitual (bug anterior classificava >=36 como intermediário).
+        self.assertEqual(self._classificar(date(date.today().year - 38, 1, 1)), "RISCO HABITUAL")
+
+    def test_idade_acima_de_40_e_intermediario(self):
+        self.assertEqual(
+            self._classificar(date(date.today().year - 41, 1, 1)), "RISCO INTERMEDIÁRIO"
+        )
+
+    def test_idade_abaixo_de_15_e_intermediario(self):
+        self.assertEqual(
+            self._classificar(date(date.today().year - 14, 1, 1)), "RISCO INTERMEDIÁRIO"
+        )
+
+    def test_imc_obesidade_grau1_e_intermediario(self):
+        # IMC ~32 (30–39,9) sem comorbidade => intermediário.
+        self.assertEqual(
+            self._classificar(date(2000, 1, 1), peso=87, estatura=165), "RISCO INTERMEDIÁRIO"
+        )
+
+    def test_imc_baixo_peso_e_intermediario(self):
+        # IMC ~17 (<18,5) => intermediário.
+        self.assertEqual(
+            self._classificar(date(2000, 1, 1), peso=49, estatura=170), "RISCO INTERMEDIÁRIO"
+        )
+
+    def test_imc_obesidade_grau3_e_alto(self):
+        # IMC >=40 => alto risco.
+        self.assertEqual(
+            self._classificar(date(2000, 1, 1), peso=115, estatura=165), "ALTO RISCO"
+        )
 
 
 if __name__ == "__main__":

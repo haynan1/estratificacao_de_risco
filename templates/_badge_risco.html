@@ -1,12 +1,12 @@
 {% set risco = paciente.risco_estratificado or paciente.classificacao_risco or "Sem classificação" %}
 {% set risco_lower = risco|lower %}
-{% if risco_lower == "calcular prevent" %}
-  <span class="badge-risk risk-mid">Prevent pendente</span>
+{% if risco_lower in ("calcular prevent", "calcular ercv") %}
+  <span class="badge-risk risk-mid">{{ risco }}</span>
 {% elif "alto" in risco_lower %}
   <span class="badge-risk risk-high">{{ risco }}</span>
-{% elif "habitual" in risco_lower or "baixo" in risco_lower %}
+{% elif "habitual" in risco_lower or "baixo" in risco_lower or "sem risco" in risco_lower %}
   <span class="badge-risk risk-low">{{ risco }}</span>
-{% elif "prevent" in risco_lower or "intermedi" in risco_lower %}
+{% elif "médio" in risco_lower or "medio" in risco_lower or "moderado" in risco_lower or "intermedi" in risco_lower or "prevent" in risco_lower %}
   <span class="badge-risk risk-mid">{{ risco }}</span>
 {% else %}
   <span class="badge-risk risk-none">{{ risco }}</span>

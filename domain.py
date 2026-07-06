@@ -16,8 +16,13 @@ PREVENT_STATUS_VALUES = (PREVENT_STATUS, PREVENT_STATUS_LEGACY)
 RISCO_EXTREMO = "Risco Extremo"
 RISCO_MUITO_ALTO = "Risco Muito Alto"
 RISCO_ALTO = "Risco Alto"
+RISCO_MEDIO = "Risco Médio"
+RISCO_MODERADO = "Risco Moderado"
 RISCO_INTERMEDIARIO = "Risco Intermediário"
 RISCO_BAIXO = "Risco Baixo"
+RISCO_SEM_ADICIONAL = "Sem Risco Adicional"
+# Pendência: falta a faixa do Escore de Risco Cardiovascular (calculadora estadual).
+ERCV_PENDENTE = "Calcular ERCV"
 
 
 def is_prevent_status(value):
@@ -70,6 +75,12 @@ def subtract_months(value, months):
 def extract_pas(pa_text):
     match = re.search(r"\d+", pa_text or "")
     return int(match.group(0)) if match else None
+
+
+def extract_pad(pa_text):
+    """Segunda medida da PA (diastólica), ex.: '140/90' -> 90."""
+    numeros = re.findall(r"\d+", pa_text or "")
+    return int(numeros[1]) if len(numeros) >= 2 else None
 
 
 def parse_ig_days(value):
@@ -235,48 +246,140 @@ def update_exames_cardiovasc(paciente):
         paciente.exames_cardiovasc = "Adequado"
 
 
-def calculate_cronico_risk(paciente):
-    cond = paciente.condicoes_alto_risco or 0
-    eventos = paciente.num_eventos_previos or 0
-    idade = paciente.idade or calculate_age(paciente.data_nascimento) or 0
+def _flag(obj, name, default=False):
+    """Lê booleano tolerando None (colunas novas em bancos migrados = NULL)."""
+    valor = getattr(obj, name, None)
+    return default if valor is None else bool(valor)
+
+
+def _pa_estagio(pas, pad):
+    """Estágio da PA pela maior entre sistólica e diastólica (NT 11/2021, Quadro 1).
+
+    Retorna 3, 2, 1 (estágios 1–3), 0 (pré-hipertensão) ou -1 (abaixo de pré-HAS).
+    """
+    pas = pas or 0
+    pad = pad or 0
+    if pas >= 180 or pad >= 110:
+        return 3
+    if pas >= 160 or pad >= 100:
+        return 2
+    if pas >= 140 or pad >= 90:
+        return 1
+    if pas >= 130 or pad >= 85:
+        return 0
+    return -1
+
+
+def _fatores_risco_has(paciente):
+    """Contagem de fatores de risco CV da Diretriz HAS 2020 (NT 11/2021, Quadro 4)."""
+    idade = paciente.idade or 0
     sexo = (paciente.sexo or "").lower()
     masculino = sexo.startswith("m")
     feminino = sexo.startswith("f")
-    risk_prevent = prevent_risk_value(paciente)
+    fatores = 0
+    if masculino:
+        fatores += 1
+    if (masculino and idade > 55) or (feminino and idade > 65):
+        fatores += 1
+    for attr in ("tabagismo", "dcv_familiar_precoce", "dislipidemia", "obesidade"):
+        if _flag(paciente, attr):
+            fatores += 1
+    if _flag(paciente, "dm2") or _flag(paciente, "dm1"):
+        fatores += 1
+    return fatores
 
-    if eventos >= 2 or (eventos == 1 and cond >= 2):
-        return RISCO_EXTREMO
-    if eventos >= 1 or cond >= 3 or paciente.dcv_at_sintomatica or (paciente.dm2 and paciente.loa):
-        return RISCO_MUITO_ALTO
-    if (
-        (paciente.dm2 and 1 <= cond <= 2 and eventos == 0 and not paciente.dcv_at_sintomatica)
-        or (paciente.dm2 and cond == 0 and ((masculino and idade >= 50) or (feminino and idade >= 56)))
-        or paciente.ateroesclerose_subclinica
-    ):
+
+def _tem_loa_dcv_drc_dm(paciente):
+    return (
+        _flag(paciente, "loa")
+        or _flag(paciente, "dcv_at_sintomatica")
+        or _flag(paciente, "doenca_aterosclerotica")
+        or _flag(paciente, "drc")
+        or _flag(paciente, "dm2")
+        or _flag(paciente, "dm1")
+    )
+
+
+def classificar_has(paciente):
+    """Risco do hipertenso sem diabetes (NT 11/2021, Quadro 3)."""
+    if _tem_loa_dcv_drc_dm(paciente):
         return RISCO_ALTO
-    if not paciente.avaliacao_prevent or not all(
-        [
-            paciente.avaliacao_prevent.ct,
-            paciente.avaliacao_prevent.hdl,
-            paciente.avaliacao_prevent.pas,
-            paciente.avaliacao_prevent.cr,
-        ]
-    ):
-        return PREVENT_STATUS
-    if risk_prevent is not None and (risk_prevent >= 0.2 or (0.05 <= risk_prevent < 0.2 and cond > 0)):
-        return RISCO_ALTO
-    if (
-        paciente.dm2
-        and cond == 0
-        and ((masculino and idade < 50) or (feminino and idade < 56))
-    ) or (risk_prevent is not None and 0.05 <= risk_prevent < 0.2 and cond == 0):
-        return RISCO_INTERMEDIARIO
+    estagio = _pa_estagio(paciente.pas, getattr(paciente, "pad", None))
+    if estagio < 0:
+        return RISCO_BAIXO
+    fatores = _fatores_risco_has(paciente)
+    coluna = 0 if fatores == 0 else (1 if fatores <= 2 else 2)
+    matriz = {
+        0: (RISCO_SEM_ADICIONAL, RISCO_BAIXO, RISCO_MODERADO),
+        1: (RISCO_BAIXO, RISCO_MODERADO, RISCO_ALTO),
+        2: (RISCO_MODERADO, RISCO_ALTO, RISCO_ALTO),
+        3: (RISCO_ALTO, RISCO_ALTO, RISCO_ALTO),
+    }
+    return matriz[estagio][coluna]
+
+
+def classificar_dm(paciente):
+    """Cascata de risco do DM / pré-diabetes (Res. 1193/2025, Quadro 9).
+
+    Devolve None quando o paciente não tem DM nem pré-diabetes (segue para HAS).
+    """
+    dm1 = _flag(paciente, "dm1")
+    tem_dm = _flag(paciente, "dm2") or dm1
+    hba1c = paciente.ultima_hba1c
+    ercv = (getattr(paciente, "ercv_faixa", "") or "").strip().lower()
+
+    if tem_dm:
+        aterosclerose = _flag(paciente, "doenca_aterosclerotica") or _flag(paciente, "dcv_at_sintomatica")
+        internacao = _flag(paciente, "internacao_aguda_12m")
+        hba1c_descontrole = hba1c is not None and hba1c > 7.5
+        # MUITO ALTO
+        if internacao or aterosclerose or (dm1 and hba1c_descontrole):
+            return RISCO_MUITO_ALTO
+        # DM1 sem descontrole grave é sempre pelo menos ALTO (nunca médio/baixo).
+        if dm1:
+            return RISCO_ALTO
+        # DM2:
+        pressao_ok = _flag(paciente, "controle_pressorico_adequado", default=True)
+        complicacao = _flag(paciente, "complicacao_cronica")
+        if hba1c_descontrole or not pressao_ok or complicacao or ercv == "alto":
+            return RISCO_ALTO
+        # DM2 controlado: sem a faixa do ERCV não dá para descartar ERCV alto.
+        if hba1c is None or not ercv:
+            return ERCV_PENDENTE
+        return RISCO_MEDIO
+
+    if _flag(paciente, "pre_diabetes"):
+        if not _flag(paciente, "autocuidado_suficiente", default=True):
+            return RISCO_MEDIO
+        if not ercv:
+            return ERCV_PENDENTE
+        return RISCO_BAIXO if ercv == "baixo" else RISCO_MEDIO
+
+    return None
+
+
+def calculate_cronico_risk(paciente):
+    """Estratificação de risco cardiovascular conforme notas técnicas SES-GO.
+
+    DM/pré-diabetes: Res. CIB 1193/2025 (Quadro 9). Hipertensão sem DM: NT 11/2021
+    (Quadro 3). A faixa do ERCV (Framingham revisado) é capturada da calculadora
+    estadual, não recalculada aqui.
+
+    ATENÇÃO: lógica clínica. Deve passar por validação profissional antes do uso
+    assistencial. É apoio à decisão, não substitui o julgamento clínico.
+    """
+    resultado_dm = classificar_dm(paciente)
+    if resultado_dm is not None:
+        return resultado_dm
+    if _flag(paciente, "has"):
+        return classificar_has(paciente)
     return RISCO_BAIXO
 
 
 def recalculate_cronico(paciente):
     paciente.idade = calculate_age(paciente.data_nascimento)
     paciente.pas = extract_pas(paciente.ultima_pa)
+    paciente.pad = extract_pad(paciente.ultima_pa)
     if paciente.avaliacao_prevent:
         calculate_prevent(paciente.avaliacao_prevent, paciente)
     paciente.risco_estratificado = calculate_cronico_risk(paciente)
@@ -314,17 +417,24 @@ def recalculate_gestante(paciente):
     else:
         paciente.ig_atual_semanas = ""
 
+    # Estratificação conforme NT 6/2024 SES-GO (Quadro 2):
+    #  - Alto risco: obesidade IMC >= 40, ou HAS/DM em descontrole, ou qualquer
+    #    critério clínico de alto risco marcado pelo profissional.
+    #  - Intermediário: idade < 15 ou > 40 anos; baixo peso (IMC < 18,5) ou
+    #    obesidade sem comorbidade (IMC 30–39,9); ou critério intermediário marcado.
+    #  - Habitual: 15 a 40 anos e IMC 18,5–29,9, sem fatores.
+    imc = paciente.imc
     if (
         paciente.criterio_alto_risco
         or paciente.hac_descontrole
         or paciente.dm_descontrole
-        or (paciente.imc is not None and paciente.imc > 39.9)
+        or (imc is not None and imc >= 40)
     ):
         paciente.classificacao_risco = "ALTO RISCO"
     elif (
         paciente.criterio_risco_intermediario
-        or (paciente.idade is not None and paciente.idade >= 36)
-        or (paciente.idade is not None and paciente.idade < 15)
+        or (paciente.idade is not None and (paciente.idade < 15 or paciente.idade > 40))
+        or (imc is not None and (imc < 18.5 or imc >= 30))
     ):
         paciente.classificacao_risco = "RISCO INTERMEDIÁRIO"
     elif paciente.nome_paciente:
