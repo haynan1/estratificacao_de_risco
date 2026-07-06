@@ -10,7 +10,7 @@
       document.documentElement.setAttribute("data-bs-theme", savedTheme);
     </script>
     <link href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260704-hardening') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260706-metodologia') }}">
   </head>
   <body>
     {% set ep = request.endpoint %}
@@ -62,6 +62,10 @@
           <a class="nav-item {{ 'is-active' if ep == 'findrisc' }}" href="{{ url_for('findrisc') }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0H5a2 2 0 0 1-2-2v-4m6 6h10a2 2 0 0 0 2-2v-4M3 9h18M3 15h18"/></svg>
             <span>FINDRISC</span>
+          </a>
+          <a class="nav-item {{ 'is-active' if ep == 'metodologia' }}" href="{{ url_for('metodologia') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M9 7h7M9 11h5"/></svg>
+            <span>Metodologia</span>
           </a>
 
           <span class="nav-section">Cadastros</span>

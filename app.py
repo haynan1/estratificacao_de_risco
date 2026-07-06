@@ -876,6 +876,12 @@ def register_routes(app):
                 }
         return render_template("form_findrisc.html", resultado=resultado, dados=dados)
 
+    @app.route("/metodologia")
+    def metodologia():
+        # Documentação técnica: como cada cálculo foi arquitetado, com exemplos,
+        # e as notas técnicas oficiais (SES-GO) disponíveis para download.
+        return render_template("metodologia.html")
+
     @app.route("/cronicos/<int:id>/prevent", methods=["GET", "POST"])
     def prevent(id):
         paciente = PacienteCronico.query.get_or_404(id)

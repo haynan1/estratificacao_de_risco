@@ -1396,3 +1396,140 @@ td .empty-state { padding: 2rem 1rem; }
 /* ---------- Calculadora ERG ---------- */
 .erg-result { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.5rem; }
 .erg-pct { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---------- Metodologia / documentação técnica ---------- */
+.doc-wrap { max-width: 940px; }
+.doc-lead-note {
+  background: linear-gradient(180deg, var(--brand-faint), transparent 70%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.3rem 1.4rem;
+  margin-bottom: 1.6rem;
+}
+.doc-lead-note p { margin: 0; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.62; }
+.doc-lead-note p + p { margin-top: 0.7rem; }
+.doc-lead-note strong { color: var(--ink); font-weight: 600; }
+
+/* Índice */
+.doc-toc { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2.2rem; }
+.doc-toc a {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.42rem 0.8rem; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--ink-soft); font-size: 0.82rem; font-weight: 500;
+  text-decoration: none; transition: all 0.15s var(--ease);
+}
+.doc-toc a:hover { color: var(--ink); border-color: var(--border-strong); background: var(--surface-3); }
+.doc-toc a span.num {
+  font-variant-numeric: tabular-nums; color: var(--brand);
+  font-weight: 700; font-size: 0.78rem;
+}
+
+/* Cards de download dos PDFs */
+.doc-downloads { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.8rem; }
+.doc-file {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.95rem 1rem; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: inherit; text-decoration: none; transition: all 0.15s var(--ease);
+}
+.doc-file:hover { border-color: var(--brand); background: var(--surface-3); transform: translateY(-1px); }
+.doc-file-ico {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 9px;
+  display: grid; place-items: center;
+  background: var(--brand-faint); color: var(--brand);
+}
+.doc-file-ico svg { width: 20px; height: 20px; }
+.doc-file-meta { min-width: 0; }
+.doc-file-meta strong { display: block; font-size: 0.9rem; color: var(--ink); font-weight: 600; letter-spacing: -0.01em; }
+.doc-file-meta small { display: block; color: var(--ink-faint); font-size: 0.76rem; margin-top: 0.1rem; }
+
+/* Seções de cada cálculo */
+.doc-section { scroll-margin-top: 1.2rem; margin-top: 2.4rem; }
+.doc-section-head { display: flex; align-items: baseline; gap: 0.7rem; margin-bottom: 0.4rem; }
+.doc-section-head .num {
+  font-variant-numeric: tabular-nums; font-size: 0.9rem; font-weight: 700;
+  color: var(--brand); flex: 0 0 auto;
+}
+.doc-section-head h2 { font-size: 1.28rem; margin: 0; letter-spacing: -0.02em; color: var(--ink); }
+.doc-objetivo { color: var(--ink-soft); font-size: 0.94rem; line-height: 1.6; margin: 0 0 1rem; }
+
+.doc-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.15rem; }
+.doc-tag {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.3rem 0.7rem; border-radius: 8px; font-size: 0.78rem;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-soft);
+}
+.doc-tag svg { width: 14px; height: 14px; color: var(--ink-faint); }
+.doc-tag code { font-size: 0.76rem; color: var(--ink); background: none; padding: 0; }
+.doc-tag a { color: var(--brand); text-decoration: none; }
+.doc-tag a:hover { text-decoration: underline; }
+
+.doc-h3 {
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-faint); font-weight: 600; margin: 1.35rem 0 0.6rem;
+}
+.doc-section p { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.62; margin: 0 0 0.7rem; }
+.doc-section ul { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.62; margin: 0 0 0.8rem; padding-left: 1.2rem; }
+.doc-section li { margin-bottom: 0.25rem; }
+.doc-section li strong, .doc-section p strong { color: var(--ink); font-weight: 600; }
+.doc-section code {
+  font-size: 0.83rem; background: var(--surface-2); color: var(--brand);
+  padding: 0.08rem 0.36rem; border-radius: 5px; border: 1px solid var(--border);
+}
+
+/* Tabelas de pontuação */
+.doc-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 0.9rem; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 380px; }
+.doc-table th, .doc-table td { padding: 0.55rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+.doc-table thead th { background: var(--surface-2); color: var(--ink-soft); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.doc-table tbody tr:last-child td { border-bottom: none; }
+.doc-table td:not(:first-child), .doc-table th:not(:first-child) { text-align: center; font-variant-numeric: tabular-nums; }
+.doc-table .pts { font-weight: 600; color: var(--ink); }
+
+/* Bloco de exemplo (estilo doctest) */
+.doc-example {
+  background: var(--surface-1); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 0.9rem;
+}
+.doc-example-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.55rem 0.9rem; background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-faint); font-weight: 600;
+}
+.doc-example-head svg { width: 15px; height: 15px; color: var(--brand); }
+.doc-example pre {
+  margin: 0; padding: 0.95rem 1rem; overflow-x: auto;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.82rem; line-height: 1.6; color: var(--ink-soft);
+}
+.doc-example pre .c { color: var(--ink-faint); }
+.doc-example pre .k { color: var(--brand); font-weight: 600; }
+.doc-example pre .r { color: var(--ink); font-weight: 600; }
+
+/* Fluxograma da cascata */
+.doc-flow { list-style: none; padding: 0; margin: 0 0 0.9rem; counter-reset: step; }
+.doc-flow li {
+  position: relative; padding: 0.7rem 0.9rem 0.7rem 2.9rem; margin-bottom: 0.5rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 0.87rem; color: var(--ink-soft); line-height: 1.55;
+}
+.doc-flow li::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; left: 0.75rem; top: 0.7rem;
+  width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  display: grid; place-items: center; font-size: 0.76rem; font-weight: 700;
+  background: var(--brand-faint); color: var(--brand);
+}
+.doc-flow li strong { color: var(--ink); }
+
+.doc-callout {
+  display: flex; gap: 0.7rem; padding: 0.9rem 1rem; border-radius: var(--radius-sm);
+  background: var(--risk-mid-bg); border: 1px solid transparent;
+  margin: 1.4rem 0; font-size: 0.87rem; color: var(--ink-soft); line-height: 1.55;
+}
+.doc-callout svg { flex: 0 0 auto; width: 19px; height: 19px; color: var(--risk-mid); margin-top: 0.1rem; }
+.doc-callout strong { color: var(--ink); }
+.doc-divider { border: none; border-top: 1px solid var(--border); margin: 0; }
