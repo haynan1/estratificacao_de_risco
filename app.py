@@ -21,6 +21,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash
 
 from domain import (
+    ERCV_PENDENTE,
     PREVENT_STATUS,
     PREVENT_STATUS_VALUES,
     calculate_age,
@@ -550,12 +551,12 @@ def register_routes(app):
         riscos_cronicos = [
             row
             for row in count_by(PacienteCronico, PacienteCronico.risco_estratificado)
-            if not is_prevent_status(row[0])
+            if not is_prevent_status(row[0]) and row[0] != ERCV_PENDENTE
         ]
         riscos_gestantes = count_by(Gestante, Gestante.classificacao_risco)
-        prevent_pendente = PacienteCronico.query.filter(
-            PacienteCronico.risco_estratificado.in_(PREVENT_STATUS_VALUES),
-            ~PacienteCronico.avaliacao_prevent.has(),
+        # Pendência de estratificação: falta a faixa do ERCV para concluir.
+        ercv_pendente = PacienteCronico.query.filter(
+            PacienteCronico.risco_estratificado == ERCV_PENDENTE
         ).count()
         hoje = date.today()
         proximas_dpps = (
@@ -571,7 +572,7 @@ def register_routes(app):
             PacienteCronico.query.filter(
                 or_(
                     PacienteCronico.risco_estratificado.ilike("%alto%"),
-                    PacienteCronico.risco_estratificado.in_(PREVENT_STATUS_VALUES),
+                    PacienteCronico.risco_estratificado == ERCV_PENDENTE,
                 )
             )
             .order_by(PacienteCronico.nome_completo)
@@ -592,7 +593,7 @@ def register_routes(app):
             riscos_gestantes=riscos_gestantes,
             riscos_cronicos_map=risco_counts(riscos_cronicos),
             riscos_gestantes_map=risco_counts(riscos_gestantes),
-            prevent_pendente=prevent_pendente,
+            ercv_pendente=ercv_pendente,
             total_has=PacienteCronico.query.filter_by(has=True).count(),
             total_dm2=PacienteCronico.query.filter_by(dm2=True).count(),
             gestantes_alto_risco=gestantes_alto_risco,

@@ -38,16 +38,15 @@
           <tr>
             <td>
               <strong>{{ paciente.nome_completo }}</strong>
-              {% if paciente.precisa_prevent %}
-                <div class="small" style="color: var(--risk-mid); font-weight: 600; margin-top: 2px;">Prevent pendente</div>
-              {% endif %}
             </td>
             <td class="cell-numeric">{{ paciente.cpf|cpf }}</td>
             <td>{{ paciente.acs or "—" }}</td>
             <td>
               {% if paciente.has %}<span class="tag">HAS</span>{% endif %}
               {% if paciente.dm2 %}<span class="tag">DM2</span>{% endif %}
-              {% if not paciente.has and not paciente.dm2 %}—{% endif %}
+              {% if paciente.dm1 %}<span class="tag">DM1</span>{% endif %}
+              {% if paciente.pre_diabetes %}<span class="tag">Pré-DM</span>{% endif %}
+              {% if not (paciente.has or paciente.dm2 or paciente.dm1 or paciente.pre_diabetes) %}—{% endif %}
             </td>
             <td>{% include "_badge_risco.html" with context %}</td>
             <td class="text-end text-nowrap">

@@ -10,13 +10,6 @@
   <a class="btn btn-outline-secondary" href="{{ url_for('lista_cronicos') }}">Voltar</a>
 </div>
 
-{% if paciente.precisa_prevent %}
-  <div class="toast-flash toast-warning">
-    <span class="toast-dot" aria-hidden="true"></span>
-    <span class="toast-msg">Este paciente está marcado para calcular Prevent. Preencha a avaliação cardiovascular.</span>
-  </div>
-{% endif %}
-
 <form method="post" class="panel">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <ul class="nav nav-tabs" role="tablist">

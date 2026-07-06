@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from domain import display_risk
+from domain import ERCV_PENDENTE, display_risk
 from models import Gestante, PacienteCronico
 from utils import date_br, format_cpf
 
@@ -47,12 +47,16 @@ def get_report_rows(tipo="todos", risco="", acs=""):
                         for label, active in (
                             ("HAS", paciente.has),
                             ("DM2", paciente.dm2),
+                            ("DM1", paciente.dm1),
+                            ("Pré-DM", paciente.pre_diabetes),
                             ("DCV", paciente.dcv_at_sintomatica),
                         )
                         if active
                     ),
                     "referencia": paciente.data_ult_pa,
-                    "observacao": "Prevent pendente" if paciente.precisa_prevent else "",
+                    "observacao": "ERCV pendente"
+                    if paciente.risco_estratificado == ERCV_PENDENTE
+                    else "",
                 }
             )
 

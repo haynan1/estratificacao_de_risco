@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 
-{% macro risk_class(label) %}{% set l = (label or '')|lower %}{% if 'alto' in l %}risk-high{% elif 'habitual' in l or 'baixo' in l %}risk-low{% elif 'prevent' in l or 'intermedi' in l %}risk-mid{% else %}risk-none{% endif %}{% endmacro %}
+{% macro risk_class(label) %}{% set l = (label or '')|lower %}{% if 'alto' in l %}risk-high{% elif 'habitual' in l or 'baixo' in l or 'sem risco' in l %}risk-low{% elif 'médio' in l or 'medio' in l or 'moderado' in l or 'prevent' in l or 'ercv' in l or 'intermedi' in l %}risk-mid{% else %}risk-none{% endif %}{% endmacro %}
 
 {% block content %}
 <div class="page-head">
@@ -39,14 +39,14 @@
     </div>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <a class="metric is-alert" href="{{ url_for('lista_prevent', status='pendente') }}" style="color: inherit;">
+    <a class="metric is-alert" href="{{ url_for('lista_cronicos') }}" style="color: inherit;">
       <span class="metric-accent"></span>
       <div class="metric-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
-        Prevent pendente
+        ERCV pendente
       </div>
-      <div class="metric-value">{{ prevent_pendente }}</div>
-      <div class="metric-sub">Pacientes aguardando escore →</div>
+      <div class="metric-value">{{ ercv_pendente }}</div>
+      <div class="metric-sub">Aguardando faixa do ERCV →</div>
     </a>
   </div>
   <div class="col-sm-6 col-xl-3">
