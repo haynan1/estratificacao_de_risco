@@ -34,6 +34,11 @@
   --shadow: none;
   --shadow-lift: 0 0 0 1px var(--border);
 
+  --scrollbar-size: 10px;
+  --scrollbar-thumb: #3f3f46;
+  --scrollbar-thumb-hover: #52525b;
+  --scrollbar-track: transparent;
+
   --radius: 14px;
   --radius-sm: 10px;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -75,19 +80,65 @@
 
   --shadow: 0 1px 2px rgba(24, 24, 27, 0.04), 0 8px 24px rgba(24, 24, 27, 0.06);
   --shadow-lift: 0 4px 16px rgba(24, 24, 27, 0.08);
+
+  --scrollbar-thumb: #c4c4cc;
+  --scrollbar-thumb-hover: #a1a1aa;
+  --scrollbar-track: transparent;
 }
 
 /* ---------- Base ---------- */
-* { -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
-html, body { height: 100%; }
+html {
+  min-height: 100%;
+  background: var(--page-bg);
+}
 
 body {
+  min-height: 100%;
   background: var(--page-bg);
   color: var(--ink);
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   letter-spacing: -0.006em;
+  overflow-x: hidden;
+}
+
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 3px solid var(--page-bg);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb,
+.table-responsive::-webkit-scrollbar-thumb,
+.setup-card::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb {
+  border-color: var(--surface-1);
 }
 
 ::selection { background: var(--brand-faint); color: var(--ink); }
@@ -104,7 +155,7 @@ a { text-decoration: none; }
 .text-faint { color: var(--ink-faint); }
 
 /* ---------- App shell ---------- */
-.app-shell { display: flex; min-height: 100vh; }
+.app-shell { display: flex; min-height: 100vh; min-height: 100dvh; }
 
 .sidebar {
   position: fixed;
@@ -146,7 +197,15 @@ a { text-decoration: none; }
 .brand-text strong { font-size: 0.98rem; font-weight: 600; letter-spacing: -0.02em; }
 .brand-text small { font-size: 0.72rem; color: var(--ink-faint); letter-spacing: 0.02em; }
 
-.sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;               /* permite o filho encolher para rolar */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .nav-section {
   padding: 0.9rem 0.75rem 0.35rem;
   font-size: 0.68rem;
@@ -302,6 +361,8 @@ button.nav-item {
 .app-main {
   flex: 1;
   min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin-left: 264px;
   display: flex;
   flex-direction: column;
@@ -344,7 +405,11 @@ button.nav-item {
 }
 .icon-btn svg { width: 20px; height: 20px; }
 
-.content { padding: 2.25rem 2.5rem 3rem; }
+.content {
+  flex: 1;
+  width: 100%;
+  padding: 2.25rem 2.5rem 3rem;
+}
 
 /* ---------- Page header ---------- */
 .page-head {
@@ -671,6 +736,14 @@ button.nav-item {
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow);
+}
+.table-responsive {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.table-responsive::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
 }
 .table {
   --bs-table-bg: transparent;
@@ -1011,6 +1084,7 @@ td .empty-state { padding: 2rem 1rem; }
 .login-shell {
   display: grid;
   min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   padding: 1.25rem;
 }
@@ -1049,20 +1123,19 @@ td .empty-state { padding: 2rem 1rem; }
 .setup-shell {
   display: grid;
   min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   padding: 1.5rem;
 }
 .setup-card {
   width: min(100%, 940px);
-  max-height: calc(100vh - 3rem);
-  overflow-y: auto;
   display: grid;
   grid-template-columns: 320px 1fr;
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 4px);
   box-shadow: var(--shadow-lift);
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 /* Coluna de contexto */
