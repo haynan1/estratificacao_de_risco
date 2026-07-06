@@ -109,6 +109,30 @@ class TestRBAC(BaseCase):
         self.assertIn("Criar usuário", body)
         self.assertIn('href="/usuarios"', body)
 
+    def test_admin_master_nao_pode_ser_rebaixado(self):
+        c = self.admin_client()
+        with self.app.app_context():
+            if not Usuario.query.filter_by(username="bruno_admin").first():
+                db.session.add(
+                    Usuario(username="bruno_admin", nome="Bruno", papel="admin",
+                            password_hash=hash_senha("bruno12345"), ativo=True)
+                )
+                db.session.commit()
+            master = Usuario.query.filter_by(papel="admin").order_by(Usuario.id.asc()).first()
+            master_id = master.id
+
+        r = c.post(
+            f"/usuarios/{master_id}/papel",
+            data={"csrf_token": token(c, "/usuarios")},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(r.status_code, 200)
+        with self.app.app_context():
+            master = db.session.get(Usuario, master_id)
+            self.assertEqual(master.papel, "admin")
+        self.assertIn("admin master", r.get_data(as_text=True).lower())
+
 
 class TestCronicoCRUD(BaseCase):
     def test_cria_valida_e_bloqueia_cpf_duplicado(self):

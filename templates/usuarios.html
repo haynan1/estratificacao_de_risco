@@ -1,116 +1,144 @@
 {% extends "base.html" %}
 {% block title %}Usuários{% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="page-head users-head">
   <div>
     <h1>Usuários</h1>
-    <p class="lead">Cada profissional com o próprio acesso — a auditoria registra quem fez cada ação.</p>
+    <p class="lead">Cada profissional com o próprio acesso. A auditoria registra quem fez cada ação.</p>
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-lg-4">
-    <section class="panel">
-      <div class="panel-head"><h2>Novo usuário</h2></div>
-      <form method="post" action="{{ url_for('novo_usuario') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="mb-3">
-          <label class="form-label">Nome completo</label>
-          <input class="form-control" name="nome" placeholder="Ex.: Ana Enfermeira">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Usuário (login)</label>
-          <input class="form-control" name="username" required autocomplete="off" placeholder="Ex.: ana">
-        </div>
-        <div class="row g-3">
-          <div class="col-7">
-            <label class="form-label">Senha inicial</label>
-            <input class="form-control" type="password" name="senha" required minlength="8" placeholder="Mín. 8 caracteres">
-          </div>
-          <div class="col-5">
-            <label class="form-label">Papel</label>
-            <select class="form-select" name="papel">
-              <option value="padrao">Usuário</option>
-              <option value="admin">Administrador</option>
-            </select>
-          </div>
-        </div>
-        <div class="d-grid mt-4">
-          <button class="btn btn-primary" type="submit">Criar usuário</button>
-        </div>
-      </form>
-    </section>
-  </div>
-
-  <div class="col-lg-8">
-    <section class="table-card">
-      <div class="panel-head" style="padding: 1.1rem 1.35rem; margin: 0; border-bottom: 1px solid var(--border);">
-        <h2 style="font-size: 1rem; margin: 0;">Usuários cadastrados</h2>
-        <span class="count-pill">{{ usuarios|length }}</span>
+<div class="users-layout">
+  <section class="panel users-create">
+    <div class="panel-head">
+      <h2>Novo usuário</h2>
+    </div>
+    <form method="post" action="{{ url_for('novo_usuario') }}" class="users-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div>
+        <label class="form-label">Nome completo</label>
+        <input class="form-control" name="nome" placeholder="Ex.: Ana Enfermeira">
       </div>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Usuário</th>
-              <th>Papel</th>
-              <th>Status</th>
-              <th class="text-end">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for usuario in usuarios %}
-              <tr {% if not usuario.ativo %}style="opacity: 0.55;"{% endif %}>
-                <td>
-                  <strong>{{ usuario.nome or usuario.username }}</strong>
-                  <div class="alert-item-meta">@{{ usuario.username }}{% if usuario.id == current_user.id %} · você{% endif %}</div>
-                </td>
-                <td>
+      <div>
+        <label class="form-label">Usuário (login)</label>
+        <input class="form-control" name="username" required autocomplete="off" placeholder="Ex.: ana">
+      </div>
+      <div class="users-form-grid">
+        <div>
+          <label class="form-label">Senha inicial</label>
+          <input class="form-control" type="password" name="senha" required minlength="8" placeholder="Mín. 8 caracteres">
+        </div>
+        <div>
+          <label class="form-label">Papel</label>
+          <select class="form-select" name="papel">
+            <option value="padrao">Usuário</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary users-submit" type="submit">Criar usuário</button>
+    </form>
+  </section>
+
+  <section class="table-card users-card">
+    <div class="users-card-head">
+      <h2>Usuários cadastrados</h2>
+      <span class="count-pill">{{ usuarios|length }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle users-table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Papel</th>
+            <th>Status</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for usuario in usuarios %}
+            {% set is_master = usuario.id == admin_master_id %}
+            <tr class="{{ 'is-muted' if not usuario.ativo }}">
+              <td class="users-identity">
+                <div class="users-person">
+                  <span class="user-avatar" aria-hidden="true">{{ (usuario.nome or usuario.username)[:1]|upper }}</span>
+                  <div>
+                    <strong>{{ usuario.nome or usuario.username }}</strong>
+                    <div class="alert-item-meta">
+                      @{{ usuario.username }}{% if usuario.id == current_user.id %} · você{% endif %}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="users-badges">
                   {% if usuario.is_admin %}
                     <span class="badge-risk risk-mid">Administrador</span>
                   {% else %}
                     <span class="badge-risk risk-none">Usuário</span>
                   {% endif %}
-                </td>
-                <td>
-                  {% if usuario.ativo %}
-                    <span class="badge-risk risk-low">Ativo</span>
-                  {% else %}
-                    <span class="badge-risk risk-none">Inativo</span>
+                  {% if is_master %}
+                    <span class="tag tag-master">Master</span>
                   {% endif %}
-                </td>
-                <td class="text-end text-nowrap">
-                  <form class="d-inline" method="post" action="{{ url_for('alternar_papel', id=usuario.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "Rebaixar" if usuario.is_admin else "Promover" }}</button>
-                  </form>
-                  <form class="d-inline" method="post" action="{{ url_for('alternar_usuario', id=usuario.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "Desativar" if usuario.ativo else "Ativar" }}</button>
-                  </form>
-                  {% if usuario.id != current_user.id %}
-                    <form class="d-inline" method="post" action="{{ url_for('excluir_usuario', id=usuario.id) }}"
-                          data-confirm-form data-confirm-title="Remover usuário"
-                          data-confirm-message="Remover o acesso de “{{ usuario.username }}”? Esta ação não poderá ser desfeita.">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
-                    </form>
-                  {% endif %}
-                  <details class="pw-reset">
+                </div>
+              </td>
+              <td>
+                {% if usuario.ativo %}
+                  <span class="badge-risk risk-low">Ativo</span>
+                {% else %}
+                  <span class="badge-risk risk-none">Inativo</span>
+                {% endif %}
+              </td>
+              <td class="users-actions-cell">
+                <div class="users-actions">
+                  <div class="users-action-row">
+                    {% if is_master and usuario.is_admin %}
+                      <span class="users-lock">Admin master protegido</span>
+                    {% else %}
+                      <form method="post" action="{{ url_for('alternar_papel', id=usuario.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "Rebaixar" if usuario.is_admin else "Promover" }}</button>
+                      </form>
+                      <form method="post" action="{{ url_for('alternar_usuario', id=usuario.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">{{ "Desativar" if usuario.ativo else "Ativar" }}</button>
+                      </form>
+                    {% endif %}
+                    {% if usuario.id != current_user.id and not is_master %}
+                      <form method="post" action="{{ url_for('excluir_usuario', id=usuario.id) }}"
+                            data-confirm-form data-confirm-title="Remover usuário"
+                            data-confirm-message="Remover o acesso de “{{ usuario.username }}”? Esta ação não poderá ser desfeita.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                  {% set exige_codigo = is_master and usuario.id != current_user.id %}
+                  <details class="pw-reset users-reset">
                     <summary>Redefinir senha</summary>
                     <form method="post" action="{{ url_for('resetar_senha', id=usuario.id) }}" class="pw-reset-form">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      {% if exige_codigo %}
+                        <input class="form-control form-control-sm setup-code-input" name="codigo" required autocomplete="off"
+                               autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="Código do terminal">
+                      {% endif %}
                       <input class="form-control form-control-sm" type="password" name="nova_senha" required minlength="8" placeholder="Nova senha (mín. 8)">
                       <button class="btn btn-sm btn-primary" type="submit">Salvar</button>
                     </form>
+                    {% if exige_codigo %}
+                      <p class="pw-reset-hint">
+                        A senha do master exige o código do terminal. No servidor, rode
+                        <code>python app.py recuperar-senha {{ usuario.username }}</code> para obtê-lo.
+                      </p>
+                    {% endif %}
                   </details>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 {% endblock %}

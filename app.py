@@ -219,6 +219,12 @@ def registrar_auditoria(acao, entidade, entidade_id=None, detalhe=""):
 # ----------------------------------------------------------------------------
 # Aplicação de formulário (ligado ao request). Parsing/formatação vem de utils.py
 # ----------------------------------------------------------------------------
+def admin_master_id():
+    """Primeiro administrador cadastrado, protegido como criador do sistema."""
+    master = Usuario.query.filter_by(papel="admin").order_by(Usuario.id.asc()).first()
+    return master.id if master else None
+
+
 def checkbox(name):
     return name in request.form
 
@@ -892,7 +898,11 @@ def register_routes(app):
         usuarios = Usuario.query.order_by(
             Usuario.ativo.desc(), Usuario.nome, Usuario.username
         ).all()
-        return render_template("usuarios.html", usuarios=usuarios)
+        return render_template(
+            "usuarios.html",
+            usuarios=usuarios,
+            admin_master_id=admin_master_id(),
+        )
 
     @app.route("/usuarios/novo", methods=["POST"])
     @admin_required
@@ -934,6 +944,28 @@ def register_routes(app):
         if not senha_valida(nova):
             flash(f"A senha deve ter ao menos {SENHA_MIN} caracteres.", "warning")
             return redirect(url_for("lista_usuarios"))
+
+        # A senha do admin master (criador) só é redefinida com o código de
+        # recuperação do terminal — garante que apenas quem tem acesso ao
+        # servidor troca a senha do dono, mesmo que outro admin veja o botão.
+        if usuario.id == admin_master_id() and current_user().id != usuario.id:
+            identificador = f"{request.remote_addr}|master-reset"
+            if login_is_blocked(identificador):
+                flash("Muitas tentativas. Aguarde alguns minutos e tente novamente.", "danger")
+                return redirect(url_for("lista_usuarios"))
+            codigo = (request.form.get("codigo") or "").strip()
+            alvo = consumir_codigo_recuperacao(app.instance_path, codigo)
+            if not alvo or alvo.lower() != usuario.username.lower():
+                register_failed_login(identificador)
+                flash(
+                    f"Código do terminal inválido ou expirado. No servidor, rode "
+                    f"“python app.py recuperar-senha {usuario.username}”.",
+                    "danger",
+                )
+                return redirect(url_for("lista_usuarios"))
+            clear_failed_logins(identificador)
+            clear_codigo_recuperacao(app.instance_path)
+
         usuario.password_hash = hash_senha(nova)
         registrar_auditoria("reset_senha", "usuario", usuario.id, usuario.username)
         db.session.commit()
@@ -944,6 +976,9 @@ def register_routes(app):
     @admin_required
     def alternar_papel(id):
         usuario = Usuario.query.get_or_404(id)
+        if usuario.id == admin_master_id() and usuario.papel == "admin":
+            flash("O administrador master criador do sistema não pode ser rebaixado.", "warning")
+            return redirect(url_for("lista_usuarios"))
         if usuario.papel == "admin" and contar_admins_ativos() <= 1:
             flash("Não é possível rebaixar o último administrador ativo.", "warning")
             return redirect(url_for("lista_usuarios"))
@@ -957,6 +992,9 @@ def register_routes(app):
     @admin_required
     def alternar_usuario(id):
         usuario = Usuario.query.get_or_404(id)
+        if usuario.id == admin_master_id() and usuario.ativo:
+            flash("O administrador master criador do sistema não pode ser desativado.", "warning")
+            return redirect(url_for("lista_usuarios"))
         if usuario.ativo and usuario.papel == "admin" and contar_admins_ativos() <= 1:
             flash("Não é possível desativar o último administrador ativo.", "warning")
             return redirect(url_for("lista_usuarios"))
@@ -973,6 +1011,9 @@ def register_routes(app):
         usuario = Usuario.query.get_or_404(id)
         if usuario.id == current_user().id:
             flash("Você não pode excluir a própria conta.", "warning")
+            return redirect(url_for("lista_usuarios"))
+        if usuario.id == admin_master_id():
+            flash("O administrador master criador do sistema não pode ser excluído.", "warning")
             return redirect(url_for("lista_usuarios"))
         if usuario.papel == "admin" and contar_admins_ativos() <= 1:
             flash("Não é possível excluir o último administrador ativo.", "warning")
