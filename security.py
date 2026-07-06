@@ -5,9 +5,11 @@ mantendo a promessa de funcionar offline, em rede local fechada, após instalado
 """
 
 import hmac
+import json
 import os
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
@@ -18,10 +20,12 @@ from models import Usuario, db
 
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-PUBLIC_ENDPOINTS = {"login", "static", "versao"}
+# Endpoints acessíveis sem login: entrada e recuperação de senha por código.
+PUBLIC_ENDPOINTS = {"login", "static", "versao", "recuperar_senha"}
 # Endpoints do assistente de configuração inicial (só acessíveis antes do setup).
 SETUP_ENDPOINTS = {"setup"}
 SENHA_MIN = 8
+RECUPERACAO_TTL_MIN = 30
 
 # Throttle de login em memória (suficiente para uso em rede local de uma unidade).
 _FAILED_LOGINS = {}
@@ -245,6 +249,62 @@ def criar_admin_inicial(username, nome, senha):
     db.session.commit()
     current_app.config["SETUP_DONE"] = True
     return user
+
+
+# ----------------------------------------------------------------------------
+# Recuperação de senha por código de console
+# ----------------------------------------------------------------------------
+# Mesma garantia do setup: o código nasce no terminal do servidor (comando
+# `python app.py recuperar-senha <usuario>`) e é consumido na tela de login.
+# Recuperar exige acesso à máquina — não basta estar na rede local. O registro
+# guarda apenas o HASH do código (nunca o texto), o usuário-alvo e a validade.
+def _recuperacao_path(instance_path):
+    return Path(instance_path) / "recovery.json"
+
+
+def gerar_codigo_recuperacao(instance_path, username):
+    """Gera e persiste um código de recuperação de uso único para `username`.
+
+    Retorna (codigo, minutos_de_validade). Só o hash é gravado em disco.
+    """
+    codigo = _novo_codigo()
+    expira = datetime.now(timezone.utc) + timedelta(minutes=RECUPERACAO_TTL_MIN)
+    payload = {
+        "username": username,
+        "code_hash": generate_password_hash(codigo.upper()),
+        "expira_em": expira.isoformat(),
+    }
+    path = _recuperacao_path(instance_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return codigo, RECUPERACAO_TTL_MIN
+
+
+def consumir_codigo_recuperacao(instance_path, codigo):
+    """Valida o código (hash + expiração) e devolve o username-alvo, ou None.
+
+    Não remove o registro: o chamador remove só após redefinir a senha com
+    sucesso (clear_codigo_recuperacao), evitando queimar o código por engano.
+    """
+    path = _recuperacao_path(instance_path)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        expira = datetime.fromisoformat(data["expira_em"])
+    except (json.JSONDecodeError, OSError, KeyError, ValueError):
+        return None
+    if datetime.now(timezone.utc) >= expira:
+        return None
+    if not check_password_hash(data.get("code_hash", ""), str(codigo or "").strip().upper()):
+        return None
+    return data.get("username")
+
+
+def clear_codigo_recuperacao(instance_path):
+    path = _recuperacao_path(instance_path)
+    if path.exists():
+        path.unlink()
 
 
 # ----------------------------------------------------------------------------

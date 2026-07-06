@@ -43,12 +43,15 @@ from reports import get_report_rows, write_excel_report, write_pdf_report
 from security import (
     SENHA_MIN,
     admin_required,
+    clear_codigo_recuperacao,
     clear_failed_logins,
     clear_setup_token,
+    consumir_codigo_recuperacao,
     contar_admins_ativos,
     criar_admin_inicial,
     current_user,
     ensure_admin_user,
+    gerar_codigo_recuperacao,
     gerar_setup_token,
     hash_senha,
     login_is_blocked,
@@ -466,6 +469,56 @@ def register_routes(app):
             register_failed_login(identifier)
             flash("Usuário ou senha inválidos.", "danger")
         return render_template("login.html")
+
+    @app.route("/recuperar-senha", methods=["GET", "POST"])
+    def recuperar_senha():
+        if session.get("user_id"):
+            return redirect(url_for("dashboard"))
+        if request.method == "POST":
+            codigo = (request.form.get("codigo") or "").strip()
+            senha = request.form.get("senha") or ""
+            confirma = request.form.get("confirmar_senha") or ""
+
+            # Trava de força-bruta no código (endpoint público, sem auth).
+            identificador = f"{request.remote_addr}|recuperar"
+            if login_is_blocked(identificador):
+                flash("Muitas tentativas. Aguarde alguns minutos e tente novamente.", "danger")
+                return render_template("recuperar.html")
+
+            alvo = consumir_codigo_recuperacao(app.instance_path, codigo)
+            if not alvo:
+                register_failed_login(identificador)
+                flash(
+                    "Código inválido ou expirado. Gere um novo no servidor com "
+                    "“python app.py recuperar-senha <usuario>”.",
+                    "danger",
+                )
+                return render_template("recuperar.html")
+
+            if not senha_valida(senha):
+                flash(f"A nova senha deve ter ao menos {SENHA_MIN} caracteres.", "warning")
+                return render_template("recuperar.html", codigo=codigo)
+            if senha != confirma:
+                flash("A confirmação de senha não corresponde à senha digitada.", "warning")
+                return render_template("recuperar.html", codigo=codigo)
+
+            user = Usuario.query.filter(
+                db.func.lower(Usuario.username) == alvo.lower()
+            ).first()
+            if not user:
+                # Usuário removido depois da emissão do código: invalida e aborta.
+                clear_codigo_recuperacao(app.instance_path)
+                flash("A conta associada a este código não existe mais.", "danger")
+                return redirect(url_for("login"))
+
+            user.password_hash = hash_senha(senha)
+            clear_failed_logins(identificador)
+            clear_codigo_recuperacao(app.instance_path)
+            registrar_auditoria("recuperacao", "usuario", user.id, user.username)
+            db.session.commit()
+            flash("Senha redefinida com sucesso. Entre com a nova senha.", "success")
+            return redirect(url_for("login"))
+        return render_template("recuperar.html")
 
     @app.route("/logout", methods=["POST"])
     def logout():
@@ -1051,5 +1104,41 @@ def register_routes(app):
 app = create_app()
 
 
+def _cli_recuperar_senha(argv):
+    """`python app.py recuperar-senha <usuario>` — emite um código de recuperação.
+
+    Uso restrito a quem tem acesso ao servidor (o admin). O código é exibido só
+    aqui, no terminal, e depois informado na tela de login (“Esqueci minha senha”).
+    """
+    if not argv:
+        print("Uso: python app.py recuperar-senha <usuario>")
+        return 2
+    username = argv[0].strip()
+    with app.app_context():
+        user = Usuario.query.filter(
+            db.func.lower(Usuario.username) == username.lower()
+        ).first()
+        if not user:
+            print(f"Usuário '{username}' não encontrado. Confira o nome de login.")
+            return 1
+        codigo, ttl = gerar_codigo_recuperacao(app.instance_path, user.username)
+
+    print("")
+    print("============================================================")
+    print("  RECUPERACAO DE SENHA")
+    print(f"  Usuario:               {user.username}")
+    print(f"  Codigo de recuperacao: {codigo}   (valido por {ttl} min)")
+    print("  Acesse http://<endereco-do-servidor>:5000/login , clique em")
+    print("  \"Esqueci minha senha\" e informe este codigo com a nova senha.")
+    print("============================================================")
+    print("")
+    return 0
+
+
 if __name__ == "__main__":
+    import sys
+
+    argv = sys.argv[1:]
+    if argv and argv[0] == "recuperar-senha":
+        sys.exit(_cli_recuperar_senha(argv[1:]))
     app.run(host="127.0.0.1", port=5000, debug=False)

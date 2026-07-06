@@ -281,11 +281,22 @@ ou rode em outra porta trocando `--port=5000` por outro numero.
 Confirme: (1) mesmo Wi-Fi; (2) rodando com Waitress `--host=0.0.0.0`; (3) regra de
 firewall criada; (4) IP correto no `ipconfig`.
 
-**Esqueci a senha do administrador**
-Peca a outro administrador para resetar em **Usuarios**. Se nao houver outro admin,
-apague o arquivo `instance/estratificacao_risco.db` (perde os dados) ou remova o
-usuario admin direto no banco — ao reiniciar sem nenhum admin, o assistente de
-configuracao inicial roda de novo e emite um novo codigo de seguranca no terminal.
+**Esqueci a senha**
+Se houver outro administrador, o caminho mais simples e pedir que ele resete em
+**Usuarios**. Sem outro admin (ou para recuperar qualquer conta), use a recuperacao
+por codigo de terminal — nenhum dado e perdido:
+
+1. No servidor (a maquina onde o sistema roda), abra o terminal na pasta do
+   projeto, ative a `venv` e execute:
+   ```powershell
+   python app.py recuperar-senha SEU_USUARIO
+   ```
+2. O terminal exibe um **codigo de recuperacao** (valido por 30 minutos).
+3. No navegador, na tela de login, clique em **Esqueci minha senha**, informe o
+   codigo e defina a nova senha.
+
+O codigo so aparece no terminal do servidor: recuperar exige acesso a maquina,
+nao basta estar na rede local. Ele e de uso unico e expira em 30 minutos.
 
 ---
 
@@ -295,7 +306,7 @@ configuracao inicial roda de novo e emite um novo codigo de seguranca no termina
 Estratificacao_Risco/
 ├── app.py                 # configuracao e rotas
 ├── domain.py              # motor clinico (Prevent, CKD-EPI, risco) — testavel
-├── security.py            # login, papeis, CSRF, chave secreta, throttle
+├── security.py            # login, papeis, CSRF, setup, recuperacao, throttle
 ├── reports.py             # relatorios e exportacao (Excel/PDF)
 ├── utils.py               # parsing, formatacao (CPF, datas) e paginacao
 ├── models.py              # modelos do banco (inclui usuarios e auditoria)
@@ -306,6 +317,8 @@ Estratificacao_Risco/
 ├── templates/
 │   ├── base.html          # layout e menu lateral
 │   ├── login.html
+│   ├── setup.html         # assistente de configuracao inicial (1a execucao)
+│   ├── recuperar.html     # redefinir senha por codigo de terminal
 │   ├── dashboard.html
 │   ├── lista_cronicos.html / form_cronico.html
 │   ├── lista_prevent.html / form_prevent.html
