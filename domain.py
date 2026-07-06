@@ -23,6 +23,12 @@ RISCO_BAIXO = "Risco Baixo"
 RISCO_SEM_ADICIONAL = "Sem Risco Adicional"
 # Pendência: falta a faixa do Escore de Risco Cardiovascular (calculadora estadual).
 ERCV_PENDENTE = "Calcular ERCV"
+IDOSO_BAIXO = "Baixo risco de vulnerabilidade clínico-funcional"
+IDOSO_MODERADO = "Moderado risco de vulnerabilidade clínico-funcional"
+IDOSO_ALTO = "Alto risco de vulnerabilidade clínico-funcional"
+IDOSO_ROBUSTO = "Idoso robusto"
+IDOSO_RISCO_FRAGILIZACAO = "Idoso em risco de fragilização"
+IDOSO_FRAGIL = "Idoso frágil"
 
 
 def is_prevent_status(value):
@@ -236,6 +242,101 @@ def prevent_risk_value(paciente):
     return parse_percent_or_float(paciente.avaliacao_prevent.risco_cardiovascular_10_anos)
 
 
+# ----------------------------------------------------------------------------
+# Escore de Risco Global (ERG) — Framingham revisado (D'Agostino 2008)
+# ----------------------------------------------------------------------------
+# Escore que a calculadora estadual (calculadora-risco.saude.go.gov.br) usa e que
+# a Nota Técnica de DM (Res. 1193/2025) adota para a faixa do ERCV. Coeficientes
+# oficiais do modelo General CVD 10 anos (D'Agostino RB et al., Circulation 2008;
+# 117:743-753; Framingham Heart Study). Risco de evento CV (coronário, cerebro-
+# vascular, DAP, IC) em 10 anos.
+_ERG_COEF = {
+    "M": {
+        "ln_idade": 3.06117, "ln_ct": 1.12370, "ln_hdl": -0.93263,
+        "ln_pas_nt": 1.93303, "ln_pas_t": 1.99881,
+        "fumante": 0.65451, "diabetes": 0.57367,
+        "s0": 0.88936, "media": 23.9802,
+    },
+    "F": {
+        "ln_idade": 2.32888, "ln_ct": 1.20904, "ln_hdl": -0.70833,
+        "ln_pas_nt": 2.76157, "ln_pas_t": 2.82263,
+        "fumante": 0.52873, "diabetes": 0.69154,
+        "s0": 0.95012, "media": 26.1931,
+    },
+}
+
+
+def calcular_erg(sexo, idade, colesterol_total, hdl, pas, tratado, fumante, diabetes):
+    """Risco cardiovascular global em 10 anos (fração 0–1) ou None se faltar dado.
+
+    Unidades: idade em anos; colesterol total e HDL em mg/dL; PAS em mmHg.
+    `tratado` = em uso de anti-hipertensivo. Modelo válido para 30–74 anos.
+    """
+    if not all(isinstance(v, (int, float)) and v > 0 for v in (idade, colesterol_total, hdl, pas)):
+        return None
+    c = _ERG_COEF["F"] if (sexo or "").lower().startswith("f") else _ERG_COEF["M"]
+    soma = (
+        c["ln_idade"] * math.log(idade)
+        + c["ln_ct"] * math.log(colesterol_total)
+        + c["ln_hdl"] * math.log(hdl)
+        + (c["ln_pas_t"] if tratado else c["ln_pas_nt"]) * math.log(pas)
+        + (c["fumante"] if fumante else 0.0)
+        + (c["diabetes"] if diabetes else 0.0)
+    )
+    return 1 - c["s0"] ** math.exp(soma - c["media"])
+
+
+# Modelo "office-based" (D'Agostino 2008): usa IMC no lugar de colesterol/HDL —
+# alternativa validada para quando não há exames laboratoriais. Mesma fonte oficial.
+_ERG_IMC_COEF = {
+    "M": {
+        "ln_idade": 3.11296, "ln_imc": 0.79277,
+        "ln_pas_nt": 1.85508, "ln_pas_t": 1.92672,
+        "fumante": 0.70953, "diabetes": 0.53160,
+        "s0": 0.88431, "media": 23.9388,
+    },
+    "F": {
+        "ln_idade": 2.72107, "ln_imc": 0.51125,
+        "ln_pas_nt": 2.81291, "ln_pas_t": 2.88267,
+        "fumante": 0.61868, "diabetes": 0.77763,
+        "s0": 0.94833, "media": 26.0145,
+    },
+}
+
+
+def calcular_erg_imc(sexo, idade, imc, pas, tratado, fumante, diabetes):
+    """ERG pela versão office-based (IMC no lugar de colesterol/HDL). Fração 0–1.
+
+    Unidades: idade em anos; IMC em kg/m²; PAS em mmHg. `tratado` = anti-hipertensivo.
+    """
+    if not all(isinstance(v, (int, float)) and v > 0 for v in (idade, imc, pas)):
+        return None
+    c = _ERG_IMC_COEF["F"] if (sexo or "").lower().startswith("f") else _ERG_IMC_COEF["M"]
+    soma = (
+        c["ln_idade"] * math.log(idade)
+        + c["ln_imc"] * math.log(imc)
+        + (c["ln_pas_t"] if tratado else c["ln_pas_nt"]) * math.log(pas)
+        + (c["fumante"] if fumante else 0.0)
+        + (c["diabetes"] if diabetes else 0.0)
+    )
+    return 1 - c["s0"] ** math.exp(soma - c["media"])
+
+
+def faixa_erg(risco, sexo):
+    """Faixa do ERCV conforme cortes sexo-específicos da NT (Res. 1193/2025):
+    baixo <5%; intermediário 5–<20% (H) / 5–<10% (M); alto ≥20% (H) / ≥10% (M).
+    """
+    if risco is None:
+        return None
+    pct = risco * 100
+    limite_alto = 10 if (sexo or "").lower().startswith("f") else 20
+    if pct < 5:
+        return "baixo"
+    if pct < limite_alto:
+        return "intermediario"
+    return "alto"
+
+
 def update_exames_cardiovasc(paciente):
     avaliacao = paciente.avaliacao_prevent
     if not avaliacao or not avaliacao.ct:
@@ -392,6 +493,80 @@ def calculate_imc(peso, estatura):
         if altura_m > 0:
             return round(peso / (altura_m**2), 2)
     return None
+
+
+def calcular_ivcf20(paciente):
+    """Pontua o IVCF-20 conforme a Nota Técnica de Saúde da Pessoa Idosa.
+
+    Pontuação: idade 0/1/3; autopercepção 1; AIVD máximo 4; banho 6;
+    cognição 1+1+2; humor 2+2; mobilidade/comunicação/comorbidades conforme
+    instrumento, total máximo 40.
+    """
+    pontos = 0
+    idade = getattr(paciente, "idade", None)
+    if idade is not None:
+        if idade >= 85:
+            pontos += 3
+        elif idade >= 75:
+            pontos += 1
+
+    if _flag(paciente, "ivcf_autopercepcao_ruim"):
+        pontos += 1
+
+    if any(
+        _flag(paciente, attr)
+        for attr in ("ivcf_compras", "ivcf_dinheiro", "ivcf_domestico")
+    ):
+        pontos += 4
+
+    pesos = (
+        ("ivcf_banho", 6),
+        ("ivcf_esquecimento", 1),
+        ("ivcf_esquecimento_piorando", 1),
+        ("ivcf_esquecimento_impede", 2),
+        ("ivcf_desanimo", 2),
+        ("ivcf_perda_interesse", 2),
+        ("ivcf_bracos", 1),
+        ("ivcf_objetos", 1),
+        ("ivcf_capacidade_aerobica", 2),
+        ("ivcf_marcha", 2),
+        ("ivcf_quedas", 2),
+        ("ivcf_incontinencia", 2),
+        ("ivcf_visao", 2),
+        ("ivcf_audicao", 2),
+        ("ivcf_comorbidades", 4),
+    )
+    for attr, peso in pesos:
+        if _flag(paciente, attr):
+            pontos += peso
+    return pontos
+
+
+def classificar_ivcf20(pontos):
+    if pontos is None:
+        return ""
+    if pontos <= 6:
+        return IDOSO_BAIXO
+    if pontos <= 14:
+        return IDOSO_MODERADO
+    return IDOSO_ALTO
+
+
+def estrato_idoso_por_ivcf(pontos):
+    if pontos is None:
+        return ""
+    if pontos <= 6:
+        return IDOSO_ROBUSTO
+    if pontos <= 14:
+        return IDOSO_RISCO_FRAGILIZACAO
+    return IDOSO_FRAGIL
+
+
+def recalculate_idoso(paciente):
+    paciente.idade = calculate_age(paciente.data_nascimento)
+    paciente.ivcf_pontos = calcular_ivcf20(paciente)
+    paciente.classificacao_ivcf = classificar_ivcf20(paciente.ivcf_pontos)
+    paciente.estrato_clinico_funcional = estrato_idoso_por_ivcf(paciente.ivcf_pontos)
 
 
 def recalculate_gestante(paciente):

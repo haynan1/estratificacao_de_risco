@@ -305,5 +305,116 @@ class TestGestante(unittest.TestCase):
         )
 
 
+class TestERG(unittest.TestCase):
+    """Escore de Risco Global (Framingham revisado, D'Agostino 2008)."""
+
+    def test_valores_de_referencia(self):
+        # Homem 55a, CT200, HDL45, PAS130, sem outros fatores ≈ 12,1%.
+        self.assertAlmostEqual(
+            d.calcular_erg("Masculino", 55, 200, 45, 130, False, False, False), 0.121, places=2
+        )
+        # Homem 40a, perfil saudável ≈ 3,3%.
+        self.assertAlmostEqual(
+            d.calcular_erg("Masculino", 40, 180, 50, 120, False, False, False), 0.033, places=2
+        )
+        # Mulher 55a, CT200, HDL55, PAS125 ≈ 5,2%.
+        self.assertAlmostEqual(
+            d.calcular_erg("Feminino", 55, 200, 55, 125, False, False, False), 0.052, places=2
+        )
+
+    def test_tratamento_e_fatores_aumentam_risco(self):
+        base = d.calcular_erg("Masculino", 60, 220, 40, 140, False, False, False)
+        tratado = d.calcular_erg("Masculino", 60, 220, 40, 140, True, False, False)
+        fumante = d.calcular_erg("Masculino", 60, 220, 40, 140, False, True, False)
+        self.assertGreater(tratado, base)
+        self.assertGreater(fumante, base)
+
+    def test_retorna_none_sem_dados(self):
+        self.assertIsNone(d.calcular_erg("Masculino", 55, None, 45, 130, False, False, False))
+        self.assertIsNone(d.calcular_erg("Masculino", None, 200, 45, 130, False, False, False))
+
+    def test_faixas_homem(self):
+        self.assertEqual(d.faixa_erg(0.049, "Masculino"), "baixo")
+        self.assertEqual(d.faixa_erg(0.05, "Masculino"), "intermediario")
+        self.assertEqual(d.faixa_erg(0.199, "Masculino"), "intermediario")
+        self.assertEqual(d.faixa_erg(0.20, "Masculino"), "alto")
+
+    def test_faixas_mulher(self):
+        self.assertEqual(d.faixa_erg(0.049, "Feminino"), "baixo")
+        self.assertEqual(d.faixa_erg(0.099, "Feminino"), "intermediario")
+        self.assertEqual(d.faixa_erg(0.10, "Feminino"), "alto")
+
+    # --- Modelo por IMC (office-based) ---
+    def test_erg_imc_referencia(self):
+        # Homem 55a, IMC 28, PAS 130, sem outros fatores ≈ 14,0%.
+        self.assertAlmostEqual(
+            d.calcular_erg_imc("Masculino", 55, 28, 130, False, False, False), 0.140, places=2
+        )
+
+    def test_erg_imc_none_sem_imc(self):
+        self.assertIsNone(d.calcular_erg_imc("Masculino", 55, None, 130, False, False, False))
+
+    def test_erg_imc_monotonico(self):
+        menor = d.calcular_erg_imc("Feminino", 60, 24, 140, False, False, False)
+        maior = d.calcular_erg_imc("Feminino", 60, 34, 140, False, False, False)
+        self.assertGreater(maior, menor)
+
+
+class TestIdosoIVCF(unittest.TestCase):
+    def _idoso(self, **kw):
+        base = dict(
+            data_nascimento=date(1950, 1, 1),
+            idade=None,
+            ivcf_autopercepcao_ruim=False,
+            ivcf_compras=False,
+            ivcf_dinheiro=False,
+            ivcf_domestico=False,
+            ivcf_banho=False,
+            ivcf_esquecimento=False,
+            ivcf_esquecimento_piorando=False,
+            ivcf_esquecimento_impede=False,
+            ivcf_desanimo=False,
+            ivcf_perda_interesse=False,
+            ivcf_bracos=False,
+            ivcf_objetos=False,
+            ivcf_capacidade_aerobica=False,
+            ivcf_marcha=False,
+            ivcf_quedas=False,
+            ivcf_incontinencia=False,
+            ivcf_visao=False,
+            ivcf_audicao=False,
+            ivcf_comorbidades=False,
+            ivcf_pontos=None,
+            classificacao_ivcf=None,
+            estrato_clinico_funcional=None,
+        )
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def test_ivcf_aivd_pontua_no_maximo_4(self):
+        pac = self._idoso(idade=70, ivcf_compras=True, ivcf_dinheiro=True, ivcf_domestico=True)
+        self.assertEqual(d.calcular_ivcf20(pac), 4)
+
+    def test_ivcf_idade_e_dependencia_banho_alto(self):
+        pac = self._idoso(idade=86, ivcf_banho=True, ivcf_comorbidades=True, ivcf_visao=True)
+        self.assertEqual(d.calcular_ivcf20(pac), 15)
+        self.assertEqual(d.classificar_ivcf20(15), d.IDOSO_ALTO)
+        self.assertEqual(d.estrato_idoso_por_ivcf(15), d.IDOSO_FRAGIL)
+
+    def test_faixas_ivcf(self):
+        self.assertEqual(d.classificar_ivcf20(6), d.IDOSO_BAIXO)
+        self.assertEqual(d.classificar_ivcf20(7), d.IDOSO_MODERADO)
+        self.assertEqual(d.classificar_ivcf20(14), d.IDOSO_MODERADO)
+        self.assertEqual(d.classificar_ivcf20(15), d.IDOSO_ALTO)
+
+    def test_recalculate_idoso(self):
+        pac = self._idoso(data_nascimento=date(date.today().year - 80, 1, 1), ivcf_quedas=True)
+        d.recalculate_idoso(pac)
+        self.assertGreaterEqual(pac.idade, 79)
+        self.assertEqual(pac.ivcf_pontos, 3)
+        self.assertEqual(pac.classificacao_ivcf, d.IDOSO_BAIXO)
+        self.assertEqual(pac.estrato_clinico_funcional, d.IDOSO_ROBUSTO)
+
+
 if __name__ == "__main__":
     unittest.main()

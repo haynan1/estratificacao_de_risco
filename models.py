@@ -87,6 +87,13 @@ class PacienteCronico(db.Model):
     obesidade = db.Column(db.Boolean, default=False, nullable=False)
     # Faixa do Escore de Risco Cardiovascular (calculadora estadual): baixo/intermediario/alto.
     ercv_faixa = db.Column(db.String(20))
+    # Percentual do ERG (Framingham revisado) em 10 anos, quando calculado no sistema.
+    ercv_percentual = db.Column(db.Float)
+    # Base do último cálculo: "exames" (colesterol/HDL) ou "imc" (peso/altura).
+    ercv_base = db.Column(db.String(10))
+    # Antropometria — opcional. Só usada quando a base do cálculo é IMC.
+    peso = db.Column(db.Float)
+    estatura = db.Column(db.Float)
 
     avaliacao_prevent = db.relationship(
         "AvaliacaoPrevent",
@@ -98,6 +105,45 @@ class PacienteCronico(db.Model):
     @property
     def precisa_prevent(self):
         return (self.risco_estratificado or "").lower() == "calcular prevent" and not self.avaliacao_prevent
+
+
+class PacienteIdoso(db.Model):
+    __tablename__ = "paciente_idoso"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome_completo = db.Column(db.String(160), nullable=False)
+    cpf = db.Column(db.String(14), unique=True, nullable=False, index=True)
+    acs = db.Column(db.String(120))
+    data_nascimento = db.Column(db.Date)
+    idade = db.Column(db.Integer)
+    sexo = db.Column(db.String(30))
+    telefone = db.Column(db.String(40))
+
+    ivcf_autopercepcao_ruim = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_compras = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_dinheiro = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_domestico = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_banho = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_esquecimento = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_esquecimento_piorando = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_esquecimento_impede = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_desanimo = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_perda_interesse = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_bracos = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_objetos = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_capacidade_aerobica = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_marcha = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_quedas = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_incontinencia = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_visao = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_audicao = db.Column(db.Boolean, default=False, nullable=False)
+    ivcf_comorbidades = db.Column(db.Boolean, default=False, nullable=False)
+
+    ivcf_pontos = db.Column(db.Integer, default=0, nullable=False)
+    classificacao_ivcf = db.Column(db.String(120))
+    estrato_clinico_funcional = db.Column(db.String(80))
+    observacoes = db.Column(db.Text)
+    atualizado_em = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AvaliacaoPrevent(db.Model):

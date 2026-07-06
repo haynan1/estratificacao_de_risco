@@ -1,12 +1,12 @@
-{% set risco = paciente.risco_estratificado or paciente.classificacao_risco or "Sem classificação" %}
+{% set risco = paciente.risco_estratificado or paciente.classificacao_risco or paciente.classificacao_ivcf or "Sem classificação" %}
 {% set risco_lower = risco|lower %}
 {% if risco_lower in ("calcular prevent", "calcular ercv") %}
   <span class="badge-risk risk-mid">{{ risco }}</span>
-{% elif "alto" in risco_lower %}
+{% elif "alto" in risco_lower or "frágil" in risco_lower or "fragil" in risco_lower %}
   <span class="badge-risk risk-high">{{ risco }}</span>
-{% elif "habitual" in risco_lower or "baixo" in risco_lower or "sem risco" in risco_lower %}
+{% elif "habitual" in risco_lower or "baixo" in risco_lower or "sem risco" in risco_lower or "robusto" in risco_lower %}
   <span class="badge-risk risk-low">{{ risco }}</span>
-{% elif "médio" in risco_lower or "medio" in risco_lower or "moderado" in risco_lower or "intermedi" in risco_lower or "prevent" in risco_lower %}
+{% elif "médio" in risco_lower or "medio" in risco_lower or "moderado" in risco_lower or "intermedi" in risco_lower or "prevent" in risco_lower or "fragilização" in risco_lower or "fragilizacao" in risco_lower %}
   <span class="badge-risk risk-mid">{{ risco }}</span>
 {% else %}
   <span class="badge-risk risk-none">{{ risco }}</span>

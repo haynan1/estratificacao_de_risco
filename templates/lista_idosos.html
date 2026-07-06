@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs, pager with context %}
+{% block title %}Idosos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Pessoas idosas</h1>
+    <p class="lead">IVCF-20, vulnerabilidade clínico-funcional e estrato de cuidado.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('novo_idoso') }}">Nova pessoa idosa</a>
+</div>
+
+<form class="d-flex flex-wrap align-items-center gap-2 mb-3" role="search">
+  <div class="search-input" style="flex: 1 1 260px; max-width: 380px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input class="form-control" type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome ou CPF">
+  </div>
+  <div style="flex: 0 1 220px;">{{ select_acs(acs_sel, placeholder="Todos os ACS") }}</div>
+  <div style="flex: 0 1 310px;">
+    <select class="form-select" name="risco">
+      <option value="">Todos os riscos</option>
+      {% for risco in riscos %}
+        <option value="{{ risco }}" {% if risco_sel == risco %}selected{% endif %}>{{ risco }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary" type="submit">Filtrar</button>
+  {% if busca or acs_sel or risco_sel %}<a class="btn btn-ghost" href="{{ url_for('lista_idosos') }}">Limpar</a>{% endif %}
+</form>
+
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>CPF</th>
+          <th>ACS</th>
+          <th>Idade</th>
+          <th>IVCF-20</th>
+          <th>Estrato</th>
+          <th class="text-end">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for paciente in pacientes %}
+          {% set risco = paciente.classificacao_ivcf or "Sem classificação" %}
+          {% set risco_lower = risco|lower %}
+          <tr>
+            <td>
+              <strong>{{ paciente.nome_completo }}</strong>
+              <div class="alert-item-meta">{{ paciente.telefone or "—" }}</div>
+            </td>
+            <td class="cell-numeric">{{ paciente.cpf|cpf }}</td>
+            <td>{{ paciente.acs or "—" }}</td>
+            <td class="cell-numeric">{{ paciente.idade or "—" }}</td>
+            <td>
+              <span class="badge-risk {{ 'risk-high' if 'alto' in risco_lower else ('risk-mid' if 'moderado' in risco_lower else 'risk-low') }}">
+                {{ paciente.ivcf_pontos or 0 }} pontos
+              </span>
+              <div class="alert-item-meta">{{ risco }}</div>
+            </td>
+            <td><span class="tag">{{ paciente.estrato_clinico_funcional or "—" }}</span></td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('editar_idoso', id=paciente.id) }}">Editar</a>
+              <form class="d-inline" method="post" action="{{ url_for('excluir_idoso', id=paciente.id) }}" data-confirm-form data-confirm-title="Remover registro" data-confirm-message="Remover este registro de pessoa idosa? Esta ação não poderá ser desfeita.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21v-4.5a4 4 0 0 1 8 0V21"/><circle cx="12" cy="7" r="4"/></svg>
+                <strong>Nenhum idoso encontrado</strong>
+                <span>{% if busca or acs_sel or risco_sel %}Ajuste os filtros de busca, ACS ou risco.{% else %}Comece cadastrando a primeira pessoa idosa.{% endif %}</span>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{ pager(paginacao, {"q": busca, "acs": acs_sel, "risco": risco_sel}) }}
+{% endblock %}

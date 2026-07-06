@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from domain import ERCV_PENDENTE, display_risk
-from models import Gestante, PacienteCronico
+from models import Gestante, PacienteCronico, PacienteIdoso
 from utils import date_br, format_cpf
 
 REPORT_HEADERS = [
@@ -81,6 +81,26 @@ def get_report_rows(tipo="todos", risco="", acs=""):
                     or paciente.hac_descontrole
                     or paciente.dm_descontrole
                     else "",
+                }
+            )
+
+    if tipo in ("todos", "idosos"):
+        query = PacienteIdoso.query
+        if risco:
+            query = query.filter(PacienteIdoso.classificacao_ivcf == risco)
+        if acs:
+            query = query.filter(PacienteIdoso.acs.ilike(f"%{acs}%"))
+        for paciente in query.order_by(PacienteIdoso.nome_completo).all():
+            rows.append(
+                {
+                    "tipo": "Idoso",
+                    "nome": paciente.nome_completo,
+                    "cpf": format_cpf(paciente.cpf),
+                    "acs": paciente.acs or "",
+                    "risco": paciente.classificacao_ivcf or "",
+                    "condicao": f"IVCF-20: {paciente.ivcf_pontos or 0} pontos",
+                    "referencia": paciente.atualizado_em,
+                    "observacao": paciente.estrato_clinico_funcional or "",
                 }
             )
     return rows

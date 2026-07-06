@@ -100,7 +100,7 @@ class TestRBAC(BaseCase):
 
     def test_admin_acessa_tudo(self):
         c = self.admin_client()
-        for url in ["/usuarios", "/auditoria", "/relatorios/exportar/excel", "/relatorios/exportar/pdf"]:
+        for url in ["/usuarios", "/auditoria", "/idosos", "/relatorios/exportar/excel", "/relatorios/exportar/pdf"]:
             self.assertEqual(c.get(url).status_code, 200, url)
 
     def test_admin_ve_atalho_criar_usuario_no_menu(self):
@@ -161,6 +161,29 @@ class TestACS(BaseCase):
                follow_redirects=True)
         body = c.get("/cronicos/novo").get_data(as_text=True)
         self.assertIn("Carla ACS", body)
+
+
+class TestIdosoCRUD(BaseCase):
+    def test_cria_idoso_e_calcula_ivcf(self):
+        c = self.admin_client()
+        tok = token(c, "/idosos/novo")
+        r = c.post(
+            "/idosos/novo",
+            data={
+                "nome_completo": "Idoso Teste",
+                "cpf": "52998224725",
+                "data_nascimento": "1940-01-01",
+                "sexo": "Feminino",
+                "ivcf_banho": "on",
+                "ivcf_comorbidades": "on",
+                "ivcf_visao": "on",
+                "csrf_token": tok,
+            },
+            follow_redirects=True,
+        )
+        body = r.get_data(as_text=True)
+        self.assertIn("Idoso Teste", body)
+        self.assertIn("Alto risco", body)
 
 
 class TestPaginacao(unittest.TestCase):

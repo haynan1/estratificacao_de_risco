@@ -50,7 +50,8 @@
             </td>
             <td>{% include "_badge_risco.html" with context %}</td>
             <td class="text-end text-nowrap">
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('prevent', id=paciente.id) }}">Prevent</a>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('calcular_risco_erg', id=paciente.id) }}">Calcular risco</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('prevent', id=paciente.id) }}">Prevent</a>
               <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('editar_cronico', id=paciente.id) }}">Editar</a>
               <form class="d-inline" method="post" action="{{ url_for('excluir_cronico', id=paciente.id) }}" data-confirm-form data-confirm-title="Remover paciente" data-confirm-message="Remover este paciente? Esta ação não poderá ser desfeita.">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

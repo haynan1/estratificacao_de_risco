@@ -24,11 +24,16 @@ from domain import (
     ERCV_PENDENTE,
     PREVENT_STATUS,
     PREVENT_STATUS_VALUES,
+    calcular_erg,
+    calcular_erg_imc,
     calculate_age,
+    calculate_imc,
     calculate_prevent,
+    faixa_erg,
     is_prevent_status,
     recalculate_cronico,
     recalculate_gestante,
+    recalculate_idoso,
     sync_prevent_from_patient,
 )
 from models import (
@@ -37,6 +42,7 @@ from models import (
     AvaliacaoPrevent,
     Gestante,
     PacienteCronico,
+    PacienteIdoso,
     Usuario,
     db,
 )
@@ -360,6 +366,36 @@ GESTANTE_FIELDS = {
     "freq_card": "int",
 }
 
+IDOSO_FIELDS = {
+    "nome_completo": "str",
+    "cpf": "cpf",
+    "acs": "str",
+    "data_nascimento": "date",
+    "idade": "int",
+    "sexo": "str",
+    "telefone": "str",
+    "ivcf_autopercepcao_ruim": "bool",
+    "ivcf_compras": "bool",
+    "ivcf_dinheiro": "bool",
+    "ivcf_domestico": "bool",
+    "ivcf_banho": "bool",
+    "ivcf_esquecimento": "bool",
+    "ivcf_esquecimento_piorando": "bool",
+    "ivcf_esquecimento_impede": "bool",
+    "ivcf_desanimo": "bool",
+    "ivcf_perda_interesse": "bool",
+    "ivcf_bracos": "bool",
+    "ivcf_objetos": "bool",
+    "ivcf_capacidade_aerobica": "bool",
+    "ivcf_marcha": "bool",
+    "ivcf_quedas": "bool",
+    "ivcf_incontinencia": "bool",
+    "ivcf_visao": "bool",
+    "ivcf_audicao": "bool",
+    "ivcf_comorbidades": "bool",
+    "observacoes": "str",
+}
+
 
 # ----------------------------------------------------------------------------
 # Consultas de apoio
@@ -383,13 +419,14 @@ def report_filters():
 def all_risk_labels():
     rows = count_by(PacienteCronico, PacienteCronico.risco_estratificado)
     rows += count_by(Gestante, Gestante.classificacao_risco)
+    rows += count_by(PacienteIdoso, PacienteIdoso.classificacao_ivcf)
     return sorted({label for label, _total in rows if label and not is_prevent_status(label)})
 
 
 def agente_uso_map():
     """Conta quantos registros (crônicos + gestantes) referenciam cada ACS."""
     usos = {}
-    for model in (PacienteCronico, Gestante):
+    for model in (PacienteCronico, Gestante, PacienteIdoso):
         rows = (
             db.session.query(model.acs, db.func.count(model.id))
             .filter(model.acs.isnot(None), model.acs != "")
@@ -403,7 +440,7 @@ def agente_uso_map():
 
 def propagar_rename_agente(nome_antigo, nome_novo):
     """Mantém a integridade: renomear o ACS atualiza os registros vinculados."""
-    for model in (PacienteCronico, Gestante):
+    for model in (PacienteCronico, Gestante, PacienteIdoso):
         model.query.filter(model.acs == nome_antigo).update(
             {model.acs: nome_novo}, synchronize_session=False
         )
@@ -592,6 +629,7 @@ def register_routes(app):
     def dashboard():
         total_cronicos = PacienteCronico.query.count()
         total_gestantes = Gestante.query.count()
+        total_idosos = PacienteIdoso.query.count()
         riscos_cronicos = [
             row
             for row in count_by(PacienteCronico, PacienteCronico.risco_estratificado)
@@ -633,6 +671,7 @@ def register_routes(app):
             "dashboard.html",
             total_cronicos=total_cronicos,
             total_gestantes=total_gestantes,
+            total_idosos=total_idosos,
             riscos_cronicos=riscos_cronicos,
             riscos_gestantes=riscos_gestantes,
             riscos_cronicos_map=risco_counts(riscos_cronicos),
@@ -718,6 +757,89 @@ def register_routes(app):
         flash("Paciente crônico removido.", "warning")
         return redirect(url_for("lista_cronicos"))
 
+    @app.route("/idosos")
+    def lista_idosos():
+        busca = request.args.get("q", "").strip()
+        acs = request.args.get("acs", "").strip()
+        risco = request.args.get("risco", "").strip()
+        query = PacienteIdoso.query
+        if busca:
+            busca_digits = only_digits(busca)
+            filters = [
+                PacienteIdoso.nome_completo.ilike(f"%{busca}%"),
+                PacienteIdoso.cpf.ilike(f"%{busca}%"),
+            ]
+            if busca_digits:
+                filters.append(PacienteIdoso.cpf.ilike(f"%{busca_digits}%"))
+            query = query.filter(or_(*filters))
+        if acs:
+            query = query.filter(PacienteIdoso.acs == acs)
+        if risco:
+            query = query.filter(PacienteIdoso.classificacao_ivcf == risco)
+        page = request.args.get("page", 1, type=int)
+        paginacao = db.paginate(
+            query.order_by(PacienteIdoso.nome_completo),
+            page=page,
+            per_page=PER_PAGE,
+            error_out=False,
+        )
+        riscos = [
+            "Baixo risco de vulnerabilidade clínico-funcional",
+            "Moderado risco de vulnerabilidade clínico-funcional",
+            "Alto risco de vulnerabilidade clínico-funcional",
+        ]
+        return render_template(
+            "lista_idosos.html",
+            pacientes=paginacao.items,
+            paginacao=paginacao,
+            busca=busca,
+            acs_sel=acs,
+            risco_sel=risco,
+            riscos=riscos,
+        )
+
+    @app.route("/idosos/novo", methods=["GET", "POST"])
+    def novo_idoso():
+        paciente = PacienteIdoso()
+        if request.method == "POST":
+            apply_form(paciente, IDOSO_FIELDS)
+            if not cpf_valido(paciente.cpf):
+                flash("CPF inválido. Informe os 11 dígitos.", "warning")
+                return render_template("form_idoso.html", paciente=paciente)
+            recalculate_idoso(paciente)
+            db.session.add(paciente)
+            registrar_auditoria("criar", "idoso", detalhe=paciente.nome_completo)
+            if commit_session():
+                flash("Pessoa idosa cadastrada com sucesso.", "success")
+                return redirect(url_for("lista_idosos"))
+            flash("Não foi possível salvar: já existe um paciente com este CPF.", "danger")
+        return render_template("form_idoso.html", paciente=paciente)
+
+    @app.route("/idosos/editar/<int:id>", methods=["GET", "POST"])
+    def editar_idoso(id):
+        paciente = PacienteIdoso.query.get_or_404(id)
+        if request.method == "POST":
+            apply_form(paciente, IDOSO_FIELDS)
+            if not cpf_valido(paciente.cpf):
+                flash("CPF inválido. Informe os 11 dígitos.", "warning")
+                return render_template("form_idoso.html", paciente=paciente)
+            recalculate_idoso(paciente)
+            registrar_auditoria("editar", "idoso", paciente.id, paciente.nome_completo)
+            if commit_session():
+                flash("Pessoa idosa atualizada com sucesso.", "success")
+                return redirect(url_for("lista_idosos"))
+            flash("Não foi possível salvar: já existe um paciente com este CPF.", "danger")
+        return render_template("form_idoso.html", paciente=paciente)
+
+    @app.route("/idosos/excluir/<int:id>", methods=["POST"])
+    def excluir_idoso(id):
+        paciente = PacienteIdoso.query.get_or_404(id)
+        registrar_auditoria("excluir", "idoso", paciente.id, paciente.nome_completo)
+        db.session.delete(paciente)
+        db.session.commit()
+        flash("Registro de pessoa idosa removido.", "warning")
+        return redirect(url_for("lista_idosos"))
+
     @app.route("/cronicos/<int:id>/prevent", methods=["GET", "POST"])
     def prevent(id):
         paciente = PacienteCronico.query.get_or_404(id)
@@ -734,6 +856,67 @@ def register_routes(app):
             return redirect(url_for("lista_cronicos"))
         sync_prevent_from_patient(avaliacao, paciente)
         return render_template("form_prevent.html", paciente=paciente, avaliacao=avaliacao)
+
+    @app.route("/cronicos/<int:id>/erg", methods=["GET", "POST"])
+    def calcular_risco_erg(id):
+        paciente = PacienteCronico.query.get_or_404(id)
+        # Reaproveita a avaliação (colesterol, HDL, PAS, fumante, anti-HAS são os
+        # mesmos insumos do PREVENT), evitando redigitar exames.
+        avaliacao = paciente.avaliacao_prevent or AvaliacaoPrevent()
+        if request.method == "POST":
+            base = "imc" if request.form.get("base") == "imc" else "exames"
+            avaliacao.ct = parse_float(request.form.get("ct"))
+            avaliacao.hdl = parse_float(request.form.get("hdl"))
+            avaliacao.pas = parse_int(request.form.get("pas")) or paciente.pas
+            avaliacao.fumante = "fumante" in request.form
+            avaliacao.anti_hipertensivo = "anti_hipertensivo" in request.form
+            avaliacao.paciente = paciente
+            db.session.add(avaliacao)
+
+            # Peso e altura são opcionais — só entram no cálculo se a base for IMC.
+            paciente.peso = parse_float(request.form.get("peso"))
+            paciente.estatura = parse_float(request.form.get("estatura"))
+            diabetes = bool(paciente.dm2 or paciente.dm1)
+
+            if base == "imc":
+                risco = calcular_erg_imc(
+                    paciente.sexo, paciente.idade,
+                    calculate_imc(paciente.peso, paciente.estatura),
+                    avaliacao.pas, avaliacao.anti_hipertensivo, avaliacao.fumante, diabetes,
+                )
+                falta = "peso e altura"
+            else:
+                risco = calcular_erg(
+                    paciente.sexo, paciente.idade, avaliacao.ct, avaliacao.hdl,
+                    avaliacao.pas, avaliacao.anti_hipertensivo, avaliacao.fumante, diabetes,
+                )
+                falta = "colesterol total e HDL"
+
+            if risco is None:
+                flash(
+                    f"Para calcular por {'IMC' if base == 'imc' else 'exames'}, informe "
+                    f"{falta} e PAS, e confira idade e sexo do paciente.",
+                    "warning",
+                )
+                return render_template("form_erg.html", paciente=paciente, avaliacao=avaliacao)
+
+            paciente.ercv_base = base
+            paciente.ercv_percentual = round(risco * 100, 1)
+            paciente.ercv_faixa = faixa_erg(risco, paciente.sexo)
+            recalculate_cronico(paciente)
+            registrar_auditoria(
+                "erg", "cronico", paciente.id,
+                f"{paciente.ercv_percentual}% ({paciente.ercv_faixa}, base {base})",
+            )
+            db.session.commit()
+            flash(
+                f"Risco cardiovascular em 10 anos: {paciente.ercv_percentual}% — "
+                f"faixa “{paciente.ercv_faixa}” (base {'IMC' if base == 'imc' else 'exames'}). "
+                "Estratificação atualizada.",
+                "success",
+            )
+            return redirect(url_for("lista_cronicos"))
+        return render_template("form_erg.html", paciente=paciente, avaliacao=avaliacao)
 
     @app.route("/prevent")
     def lista_prevent():

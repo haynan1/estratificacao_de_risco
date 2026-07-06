@@ -26,7 +26,15 @@
         <div class="col-md-3"><label class="form-label">ACS</label>{{ select_acs(paciente.acs) }}</div>
         <div class="col-md-3"><label class="form-label">Data de nascimento</label><input class="form-control" type="date" name="data_nascimento" value="{{ paciente.data_nascimento }}" data-birth-date></div>
         <div class="col-md-2"><label class="form-label">Idade</label><input class="form-control" type="number" name="idade" value="{{ paciente.idade or '' }}" data-age-field readonly></div>
-        <div class="col-md-3"><label class="form-label">Sexo</label><input class="form-control" name="sexo" value="{{ paciente.sexo or '' }}"></div>
+        <div class="col-md-3">
+          <label class="form-label">Sexo</label>
+          {% set sexo_atual = (paciente.sexo or '')|lower %}
+          <select class="form-select" name="sexo">
+            <option value="" {% if not sexo_atual %}selected{% endif %}>— Selecione —</option>
+            <option value="Masculino" {% if sexo_atual in ['m', 'masculino'] %}selected{% endif %}>Masculino</option>
+            <option value="Feminino" {% if sexo_atual in ['f', 'feminino'] %}selected{% endif %}>Feminino</option>
+          </select>
+        </div>
       </div>
     </section>
 
@@ -55,13 +63,18 @@
           </div>
         {% endfor %}
         <div class="col-md-4">
-          <label class="form-label">Faixa ERCV <span class="text-faint">(calculadora estadual)</span></label>
+          <label class="form-label">Faixa ERCV
+            {% if paciente.ercv_percentual is not none %}<span class="text-faint">({{ paciente.ercv_percentual }}% no ERG)</span>{% endif %}
+          </label>
           <select class="form-select" name="ercv_faixa">
             <option value="" {% if not paciente.ercv_faixa %}selected{% endif %}>— não informado —</option>
             <option value="baixo" {% if paciente.ercv_faixa == 'baixo' %}selected{% endif %}>Baixo (&lt; 5%)</option>
             <option value="intermediario" {% if paciente.ercv_faixa == 'intermediario' %}selected{% endif %}>Intermediário</option>
             <option value="alto" {% if paciente.ercv_faixa == 'alto' %}selected{% endif %}>Alto</option>
           </select>
+          {% if paciente.id %}
+            <a class="setup-hint" href="{{ url_for('calcular_risco_erg', id=paciente.id) }}">Calcular pela calculadora de risco →</a>
+          {% endif %}
         </div>
         <div class="col-md-3"><label class="form-label">Especialista</label><input class="form-control" name="especialista" value="{{ paciente.especialista or '' }}"></div>
         <div class="col-md-3"><label class="form-label">Risco estratificado</label><input class="form-control" name="risco_estratificado" value="{{ paciente.risco_estratificado or '' }}" readonly></div>

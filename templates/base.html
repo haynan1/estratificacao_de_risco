@@ -49,6 +49,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0-8.7 6.7 2 2 0 0 0 0 4.6A9 9 0 0 0 20.7 14.3a2 2 0 0 0 0-4.6A9 9 0 0 0 12 3Z"/><path d="M9 11.5h.01M15 11.5h.01M9.5 15.5c.6.5 1.5.8 2.5.8s1.9-.3 2.5-.8"/></svg>
             <span>Gestantes</span>
           </a>
+          <a class="nav-item {{ 'is-active' if ep in ['lista_idosos','novo_idoso','editar_idoso'] }}" href="{{ url_for('lista_idosos') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21v-4.5a4 4 0 0 1 8 0V21"/><circle cx="12" cy="7" r="4"/><path d="M19 21h2M3 21h2"/><path d="M16.5 12.5 19 10"/></svg>
+            <span>Idosos</span>
+          </a>
 
           <span class="nav-section">Análise</span>
           <a class="nav-item {{ 'is-active' if ep == 'relatorios' }}" href="{{ url_for('relatorios') }}">

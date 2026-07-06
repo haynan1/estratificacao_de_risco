@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
+{% block title %}Pessoa idosa{% endblock %}
+{% block content %}
+{% set sexo_atual = (paciente.sexo or '')|lower %}
+<div class="page-head">
+  <div>
+    <h1>{{ "Editar" if paciente.id else "Nova" }} pessoa idosa</h1>
+    <p class="lead">Aplicação do IVCF-20 conforme a Nota Técnica de Saúde da Pessoa Idosa.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('lista_idosos') }}">Voltar</a>
+</div>
+
+<form method="post" class="panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dados" type="button">Dados pessoais</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ivcf" type="button">IVCF-20</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#resultado" type="button">Resultado</button></li>
+  </ul>
+
+  <div class="tab-content pt-3">
+    <section class="tab-pane fade show active" id="dados">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nome completo</label><input class="form-control" name="nome_completo" value="{{ paciente.nome_completo or '' }}" required></div>
+        <div class="col-md-3"><label class="form-label">CPF</label><input class="form-control" name="cpf" value="{{ paciente.cpf|cpf }}" data-cpf-mask maxlength="14" inputmode="numeric" required></div>
+        <div class="col-md-3"><label class="form-label">ACS</label>{{ select_acs(paciente.acs) }}</div>
+        <div class="col-md-3"><label class="form-label">Data de nascimento</label><input class="form-control" type="date" name="data_nascimento" value="{{ paciente.data_nascimento }}" data-birth-date></div>
+        <div class="col-md-2"><label class="form-label">Idade</label><input class="form-control" type="number" name="idade" value="{{ paciente.idade or '' }}" data-age-field readonly></div>
+        <div class="col-md-3">
+          <label class="form-label">Sexo</label>
+          <select class="form-select" name="sexo">
+            <option value="" {% if not sexo_atual %}selected{% endif %}>— Selecione —</option>
+            <option value="Masculino" {% if sexo_atual in ['m', 'masculino'] %}selected{% endif %}>Masculino</option>
+            <option value="Feminino" {% if sexo_atual in ['f', 'feminino'] %}selected{% endif %}>Feminino</option>
+          </select>
+        </div>
+        <div class="col-md-4"><label class="form-label">Telefone</label><input class="form-control" name="telefone" value="{{ paciente.telefone or '' }}"></div>
+      </div>
+    </section>
+
+    <section class="tab-pane fade" id="ivcf">
+      <p class="text-secondary mb-3">Marque apenas quando a resposta for positiva conforme o instrumento. Nas AIVD, qualquer resposta positiva soma 4 pontos no máximo.</p>
+
+      {% set grupos = [
+        ("Autopercepção", [("ivcf_autopercepcao_ruim", "Saúde regular ou ruim comparada a pessoas da mesma idade")]),
+        ("AIVD", [
+          ("ivcf_compras", "Deixou de fazer compras por saúde ou condição física"),
+          ("ivcf_dinheiro", "Deixou de controlar dinheiro, gastos ou contas por saúde"),
+          ("ivcf_domestico", "Deixou de realizar pequenos trabalhos domésticos por saúde")
+        ]),
+        ("ABVD", [("ivcf_banho", "Deixou de tomar banho sozinho por saúde ou condição física")]),
+        ("Cognição", [
+          ("ivcf_esquecimento", "Familiar ou amigo percebeu esquecimento"),
+          ("ivcf_esquecimento_piorando", "Esquecimento piorando nos últimos meses"),
+          ("ivcf_esquecimento_impede", "Esquecimento impede alguma atividade cotidiana")
+        ]),
+        ("Humor", [
+          ("ivcf_desanimo", "Desânimo, tristeza ou desesperança no último mês"),
+          ("ivcf_perda_interesse", "Perda de interesse ou prazer em atividades antes prazerosas")
+        ]),
+        ("Mobilidade", [
+          ("ivcf_bracos", "Incapaz de elevar os braços acima dos ombros"),
+          ("ivcf_objetos", "Incapaz de manusear ou segurar pequenos objetos"),
+          ("ivcf_capacidade_aerobica", "Perda ponderal, IMC < 22, panturrilha < 31 cm ou marcha 4 m > 5 s"),
+          ("ivcf_marcha", "Dificuldade para caminhar que impede atividade cotidiana"),
+          ("ivcf_quedas", "Duas ou mais quedas no último ano"),
+          ("ivcf_incontinencia", "Perde urina ou fezes sem querer")
+        ]),
+        ("Comunicação", [
+          ("ivcf_visao", "Problema de visão que impede atividade cotidiana, mesmo com correção"),
+          ("ivcf_audicao", "Problema de audição que impede atividade cotidiana, mesmo com aparelho")
+        ]),
+        ("Comorbidades múltiplas", [("ivcf_comorbidades", "Cinco ou mais doenças, cinco ou mais medicamentos diários ou internação nos últimos 6 meses")])
+      ] %}
+
+      <div class="row g-3">
+        {% for titulo, itens in grupos %}
+          <div class="col-lg-6">
+            <section class="ivcf-group">
+              <h2>{{ titulo }}</h2>
+              {% for name, label in itens %}
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="{{ name }}" id="{{ name }}" {% if paciente|attr(name) %}checked{% endif %}>
+                  <label class="form-check-label" for="{{ name }}">{{ label }}</label>
+                </div>
+              {% endfor %}
+            </section>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="tab-pane fade" id="resultado">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Pontuação IVCF-20</label>
+          <input class="form-control" value="{{ paciente.ivcf_pontos if paciente.ivcf_pontos is not none else 'Calculada ao salvar' }}" readonly>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Risco clínico-funcional</label>
+          <input class="form-control" value="{{ paciente.classificacao_ivcf or 'Calculado ao salvar' }}" readonly>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Estrato</label>
+          <input class="form-control" value="{{ paciente.estrato_clinico_funcional or 'Calculado ao salvar' }}" readonly>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Observações e plano de cuidado</label>
+          <textarea class="form-control" name="observacoes" rows="5">{{ paciente.observacoes or '' }}</textarea>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mt-4">
+    <button class="btn btn-primary" type="submit">Salvar e calcular IVCF-20</button>
+  </div>
+</form>
+{% endblock %}
