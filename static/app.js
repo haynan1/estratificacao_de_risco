@@ -15,6 +15,52 @@ document.querySelectorAll("[data-cpf-mask]").forEach((input) => {
 });
 
 // ---------- Age from birth date ----------
+function isValidDateParts(year, month, day) {
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function normalizeBirthDate(value) {
+  const text = (value || "").trim();
+  if (!text) return "";
+
+  let year;
+  let month;
+  let day;
+
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    year = Number(isoMatch[1]);
+    month = Number(isoMatch[2]);
+    day = Number(isoMatch[3]);
+  } else {
+    const separatedMatch = text.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+    if (separatedMatch) {
+      day = Number(separatedMatch[1]);
+      month = Number(separatedMatch[2]);
+      year = Number(separatedMatch[3]);
+      if (year < 100) year += year >= 30 ? 1900 : 2000;
+    } else {
+      const digits = text.replace(/\D/g, "");
+      if (digits.length !== 8) return "";
+
+      const startsWithYear = Number(digits.slice(0, 4)) >= 1900;
+      if (startsWithYear) {
+        year = Number(digits.slice(0, 4));
+        month = Number(digits.slice(4, 6));
+        day = Number(digits.slice(6, 8));
+      } else {
+        day = Number(digits.slice(0, 2));
+        month = Number(digits.slice(2, 4));
+        year = Number(digits.slice(4, 8));
+      }
+    }
+  }
+
+  if (!isValidDateParts(year, month, day)) return "";
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function calculateAgeFromDate(value) {
   if (!value) return "";
   const birthDate = new Date(`${value}T00:00:00`);
@@ -39,6 +85,14 @@ document.querySelectorAll("[data-birth-date]").forEach((birthInput) => {
 
   birthInput.addEventListener("change", updateAge);
   birthInput.addEventListener("input", updateAge);
+  birthInput.addEventListener("paste", (event) => {
+    const normalizedDate = normalizeBirthDate(event.clipboardData?.getData("text"));
+    if (!normalizedDate) return;
+
+    event.preventDefault();
+    birthInput.value = normalizedDate;
+    updateAge();
+  });
   updateAge();
 });
 
