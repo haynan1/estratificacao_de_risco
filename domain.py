@@ -250,76 +250,67 @@ def prevent_risk_value(paciente):
 # oficiais do modelo General CVD 10 anos (D'Agostino RB et al., Circulation 2008;
 # 117:743-753; Framingham Heart Study). Risco de evento CV (coronário, cerebro-
 # vascular, DAP, IC) em 10 anos.
-_ERG_COEF = {
+# Versão em PONTOS (oficial) do ERG — a mesma da calculadora estadual, conforme a
+# Nota Técnica de Risco Cardiovascular (SES-GO; Tabelas 1 e 2). Cada fator recebe
+# pontos por faixa; a soma mapeia para a estimativa de risco em 10 anos. Cada
+# bracket é (limite_superior_inclusive, pontos); o último cobre o restante.
+_ERG_PONTOS = {
     "M": {
-        "ln_idade": 3.06117, "ln_ct": 1.12370, "ln_hdl": -0.93263,
-        "ln_pas_nt": 1.93303, "ln_pas_t": 1.99881,
-        "fumante": 0.65451, "diabetes": 0.57367,
-        "s0": 0.88936, "media": 23.9802,
+        "idade": [(34, 0), (39, 2), (44, 5), (49, 6), (54, 8), (59, 10),
+                  (64, 11), (69, 12), (74, 14), (float("inf"), 15)],
+        "hdl": [(34, 2), (44, 1), (49, 0), (59, -1), (float("inf"), -2)],
+        "ct": [(159, 0), (199, 1), (239, 2), (279, 3), (float("inf"), 4)],
+        "pas_nt": [(119, -2), (129, 0), (139, 1), (159, 2), (float("inf"), 3)],
+        "pas_t": [(119, 0), (129, 2), (139, 3), (159, 4), (float("inf"), 5)],
+        "fumante": 4, "diabetes": 3, "pts_min": -3, "pts_max": 18,
+        "risco": {-3: 0.009, -2: 0.011, -1: 0.014, 0: 0.016, 1: 0.019, 2: 0.023,
+                  3: 0.028, 4: 0.033, 5: 0.039, 6: 0.047, 7: 0.056, 8: 0.067,
+                  9: 0.079, 10: 0.094, 11: 0.112, 12: 0.132, 13: 0.156, 14: 0.184,
+                  15: 0.216, 16: 0.253, 17: 0.294, 18: 0.305},
     },
     "F": {
-        "ln_idade": 2.32888, "ln_ct": 1.20904, "ln_hdl": -0.70833,
-        "ln_pas_nt": 2.76157, "ln_pas_t": 2.82263,
-        "fumante": 0.52873, "diabetes": 0.69154,
-        "s0": 0.95012, "media": 26.1931,
+        "idade": [(34, 0), (39, 2), (44, 4), (49, 5), (54, 7), (59, 8),
+                  (64, 9), (69, 10), (74, 11), (float("inf"), 12)],
+        "hdl": [(34, 2), (44, 1), (49, 0), (59, -1), (float("inf"), -2)],
+        "ct": [(159, 0), (199, 1), (239, 3), (279, 4), (float("inf"), 5)],
+        "pas_nt": [(119, -3), (129, 0), (139, 1), (149, 2), (159, 4), (float("inf"), 5)],
+        "pas_t": [(119, -1), (129, 2), (139, 3), (149, 5), (159, 6), (float("inf"), 7)],
+        "fumante": 3, "diabetes": 4, "pts_min": -2, "pts_max": 21,
+        "risco": {-2: 0.009, -1: 0.010, 0: 0.012, 1: 0.015, 2: 0.017, 3: 0.020,
+                  4: 0.024, 5: 0.028, 6: 0.033, 7: 0.039, 8: 0.045, 9: 0.053,
+                  10: 0.063, 11: 0.073, 12: 0.086, 13: 0.100, 14: 0.117, 15: 0.137,
+                  16: 0.159, 17: 0.185, 18: 0.216, 19: 0.248, 20: 0.285, 21: 0.305},
     },
 }
+
+
+def _pontos_bracket(valor, brackets):
+    for limite, pontos in brackets:
+        if valor <= limite:
+            return pontos
+    return brackets[-1][1]
 
 
 def calcular_erg(sexo, idade, colesterol_total, hdl, pas, tratado, fumante, diabetes):
-    """Risco cardiovascular global em 10 anos (fração 0–1) ou None se faltar dado.
+    """Risco cardiovascular global em 10 anos (fração 0–1) pelo ERG em PONTOS.
 
-    Unidades: idade em anos; colesterol total e HDL em mg/dL; PAS em mmHg.
-    `tratado` = em uso de anti-hipertensivo. Modelo válido para 30–74 anos.
+    Versão oficial da calculadora estadual (NT de Risco Cardiovascular SES-GO,
+    Tabelas 1 e 2). Unidades: idade em anos; colesterol total e HDL em mg/dL;
+    PAS em mmHg. `tratado` = em uso de anti-hipertensivo. None se faltar dado.
     """
     if not all(isinstance(v, (int, float)) and v > 0 for v in (idade, colesterol_total, hdl, pas)):
         return None
-    c = _ERG_COEF["F"] if (sexo or "").lower().startswith("f") else _ERG_COEF["M"]
-    soma = (
-        c["ln_idade"] * math.log(idade)
-        + c["ln_ct"] * math.log(colesterol_total)
-        + c["ln_hdl"] * math.log(hdl)
-        + (c["ln_pas_t"] if tratado else c["ln_pas_nt"]) * math.log(pas)
-        + (c["fumante"] if fumante else 0.0)
-        + (c["diabetes"] if diabetes else 0.0)
+    t = _ERG_PONTOS["F"] if (sexo or "").lower().startswith("f") else _ERG_PONTOS["M"]
+    total = (
+        _pontos_bracket(idade, t["idade"])
+        + _pontos_bracket(hdl, t["hdl"])
+        + _pontos_bracket(colesterol_total, t["ct"])
+        + _pontos_bracket(pas, t["pas_t"] if tratado else t["pas_nt"])
+        + (t["fumante"] if fumante else 0)
+        + (t["diabetes"] if diabetes else 0)
     )
-    return 1 - c["s0"] ** math.exp(soma - c["media"])
-
-
-# Modelo "office-based" (D'Agostino 2008): usa IMC no lugar de colesterol/HDL —
-# alternativa validada para quando não há exames laboratoriais. Mesma fonte oficial.
-_ERG_IMC_COEF = {
-    "M": {
-        "ln_idade": 3.11296, "ln_imc": 0.79277,
-        "ln_pas_nt": 1.85508, "ln_pas_t": 1.92672,
-        "fumante": 0.70953, "diabetes": 0.53160,
-        "s0": 0.88431, "media": 23.9388,
-    },
-    "F": {
-        "ln_idade": 2.72107, "ln_imc": 0.51125,
-        "ln_pas_nt": 2.81291, "ln_pas_t": 2.88267,
-        "fumante": 0.61868, "diabetes": 0.77763,
-        "s0": 0.94833, "media": 26.0145,
-    },
-}
-
-
-def calcular_erg_imc(sexo, idade, imc, pas, tratado, fumante, diabetes):
-    """ERG pela versão office-based (IMC no lugar de colesterol/HDL). Fração 0–1.
-
-    Unidades: idade em anos; IMC em kg/m²; PAS em mmHg. `tratado` = anti-hipertensivo.
-    """
-    if not all(isinstance(v, (int, float)) and v > 0 for v in (idade, imc, pas)):
-        return None
-    c = _ERG_IMC_COEF["F"] if (sexo or "").lower().startswith("f") else _ERG_IMC_COEF["M"]
-    soma = (
-        c["ln_idade"] * math.log(idade)
-        + c["ln_imc"] * math.log(imc)
-        + (c["ln_pas_t"] if tratado else c["ln_pas_nt"]) * math.log(pas)
-        + (c["fumante"] if fumante else 0.0)
-        + (c["diabetes"] if diabetes else 0.0)
-    )
-    return 1 - c["s0"] ** math.exp(soma - c["media"])
+    total = max(t["pts_min"], min(t["pts_max"], total))
+    return t["risco"][total]
 
 
 def faixa_erg(risco, sexo):
@@ -335,6 +326,75 @@ def faixa_erg(risco, sexo):
     if pct < limite_alto:
         return "intermediario"
     return "alto"
+
+
+# -----------------------------------------------------------------------------
+# FINDRISC — risco de desenvolver diabetes tipo 2 em 10 anos (Escore Finlandês)
+# -----------------------------------------------------------------------------
+# Instrumento em pontos (SBD 2024; Lindström & Tuomilehto 2003). Pontuação 0–26.
+def calcular_findrisc(idade, imc, cintura, sexo, atividade_fisica,
+                      come_vegetais_diario, medicamento_pressao, glicemia_alta,
+                      familiar_diabetes):
+    """Pontuação FINDRISC (0–26) ou None se faltar idade, IMC ou cintura.
+
+    `familiar_diabetes`: "nao" | "segundo_grau" (avós/tios/primos → 3) |
+    "primeiro_grau" (pais/irmãos/filhos → 5).
+    """
+    if not all(isinstance(v, (int, float)) and v > 0 for v in (idade, imc, cintura)):
+        return None
+    pontos = 0
+    # 1. Idade
+    if idade > 64:
+        pontos += 4
+    elif idade >= 55:
+        pontos += 3
+    elif idade >= 45:
+        pontos += 2
+    # 2. IMC
+    if imc > 30:
+        pontos += 3
+    elif imc >= 25:
+        pontos += 1
+    # 3. Circunferência da cintura (sexo-específico)
+    if (sexo or "").lower().startswith("f"):
+        pontos += 4 if cintura > 88 else (3 if cintura >= 80 else 0)
+    else:
+        pontos += 4 if cintura > 102 else (3 if cintura >= 94 else 0)
+    # 4. Atividade física < 30 min/dia
+    if not atividade_fisica:
+        pontos += 2
+    # 5. Não come vegetais/frutas todos os dias
+    if not come_vegetais_diario:
+        pontos += 1
+    # 6. Uso de medicamento para pressão alta
+    if medicamento_pressao:
+        pontos += 2
+    # 7. Glicose alta detectada alguma vez
+    if glicemia_alta:
+        pontos += 5
+    # 8. Familiar com diabetes
+    fam = (familiar_diabetes or "").lower()
+    if fam == "primeiro_grau":
+        pontos += 5
+    elif fam == "segundo_grau":
+        pontos += 3
+    return pontos
+
+
+def faixa_findrisc(pontos):
+    """Faixa do FINDRISC: baixo <7; levemente elevado 7–11; moderado 12–14;
+    alto 15–20; muito alto >20."""
+    if pontos is None:
+        return None
+    if pontos < 7:
+        return "baixo"
+    if pontos <= 11:
+        return "levemente_elevado"
+    if pontos <= 14:
+        return "moderado"
+    if pontos <= 20:
+        return "alto"
+    return "muito_alto"
 
 
 def update_exames_cardiovasc(paciente):

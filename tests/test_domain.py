@@ -309,17 +309,18 @@ class TestERG(unittest.TestCase):
     """Escore de Risco Global (Framingham revisado, D'Agostino 2008)."""
 
     def test_valores_de_referencia(self):
-        # Homem 55a, CT200, HDL45, PAS130, sem outros fatores ≈ 12,1%.
+        # ERG em pontos (Tabelas oficiais). Homem 55a, CT200, HDL45, PAS130 sem
+        # fatores = 10+0+2+1 = 13 pontos -> 15,6%.
         self.assertAlmostEqual(
-            d.calcular_erg("Masculino", 55, 200, 45, 130, False, False, False), 0.121, places=2
+            d.calcular_erg("Masculino", 55, 200, 45, 130, False, False, False), 0.156, places=3
         )
-        # Homem 40a, perfil saudável ≈ 3,3%.
+        # Homem 40a, CT180, HDL50, PAS120 = 5-1+1+0 = 5 pontos -> 3,9%.
         self.assertAlmostEqual(
-            d.calcular_erg("Masculino", 40, 180, 50, 120, False, False, False), 0.033, places=2
+            d.calcular_erg("Masculino", 40, 180, 50, 120, False, False, False), 0.039, places=3
         )
-        # Mulher 55a, CT200, HDL55, PAS125 ≈ 5,2%.
+        # Mulher 55a, CT200, HDL55, PAS125 = 8-1+3+0 = 10 pontos -> 6,3%.
         self.assertAlmostEqual(
-            d.calcular_erg("Feminino", 55, 200, 55, 125, False, False, False), 0.052, places=2
+            d.calcular_erg("Feminino", 55, 200, 55, 125, False, False, False), 0.063, places=3
         )
 
     def test_tratamento_e_fatores_aumentam_risco(self):
@@ -343,21 +344,6 @@ class TestERG(unittest.TestCase):
         self.assertEqual(d.faixa_erg(0.049, "Feminino"), "baixo")
         self.assertEqual(d.faixa_erg(0.099, "Feminino"), "intermediario")
         self.assertEqual(d.faixa_erg(0.10, "Feminino"), "alto")
-
-    # --- Modelo por IMC (office-based) ---
-    def test_erg_imc_referencia(self):
-        # Homem 55a, IMC 28, PAS 130, sem outros fatores ≈ 14,0%.
-        self.assertAlmostEqual(
-            d.calcular_erg_imc("Masculino", 55, 28, 130, False, False, False), 0.140, places=2
-        )
-
-    def test_erg_imc_none_sem_imc(self):
-        self.assertIsNone(d.calcular_erg_imc("Masculino", 55, None, 130, False, False, False))
-
-    def test_erg_imc_monotonico(self):
-        menor = d.calcular_erg_imc("Feminino", 60, 24, 140, False, False, False)
-        maior = d.calcular_erg_imc("Feminino", 60, 34, 140, False, False, False)
-        self.assertGreater(maior, menor)
 
 
 class TestIdosoIVCF(unittest.TestCase):
@@ -414,6 +400,56 @@ class TestIdosoIVCF(unittest.TestCase):
         self.assertEqual(pac.ivcf_pontos, 3)
         self.assertEqual(pac.classificacao_ivcf, d.IDOSO_BAIXO)
         self.assertEqual(pac.estrato_clinico_funcional, d.IDOSO_ROBUSTO)
+
+
+class TestFindrisc(unittest.TestCase):
+    """Escore FINDRISC — risco de desenvolver DM2 em 10 anos (0–26 pontos)."""
+
+    def fr(self, **kw):
+        base = dict(
+            idade=40, imc=22, cintura=90, sexo="Masculino", atividade_fisica=True,
+            come_vegetais_diario=True, medicamento_pressao=False, glicemia_alta=False,
+            familiar_diabetes="nao",
+        )
+        base.update(kw)
+        return d.calcular_findrisc(**base)
+
+    def test_perfil_saudavel_zero(self):
+        self.assertEqual(self.fr(), 0)
+        self.assertEqual(d.faixa_findrisc(0), "baixo")
+
+    def test_perfil_maximo(self):
+        pts = self.fr(idade=70, imc=35, cintura=110, atividade_fisica=False,
+                      come_vegetais_diario=False, medicamento_pressao=True,
+                      glicemia_alta=True, familiar_diabetes="primeiro_grau")
+        self.assertEqual(pts, 26)  # 4+3+4+2+1+2+5+5
+        self.assertEqual(d.faixa_findrisc(pts), "muito_alto")
+
+    def test_caso_intermediario(self):
+        # idade 50(2)+imc 27(1)+cintura 100 M(3)+vegetais não(1)+familiar 2º grau(3) = 10.
+        pts = self.fr(idade=50, imc=27, cintura=100, come_vegetais_diario=False,
+                      familiar_diabetes="segundo_grau")
+        self.assertEqual(pts, 10)
+        self.assertEqual(d.faixa_findrisc(pts), "levemente_elevado")
+
+    def test_cintura_sexo_especifico(self):
+        # cintura 85: mulher 80-88 → +3; homem <94 → 0.
+        self.assertEqual(self.fr(sexo="Feminino", cintura=85), 3)
+        self.assertEqual(self.fr(sexo="Masculino", cintura=85), 0)
+
+    def test_none_sem_dados(self):
+        self.assertIsNone(self.fr(imc=None))
+        self.assertIsNone(self.fr(cintura=None))
+
+    def test_faixas(self):
+        self.assertEqual(d.faixa_findrisc(6), "baixo")
+        self.assertEqual(d.faixa_findrisc(7), "levemente_elevado")
+        self.assertEqual(d.faixa_findrisc(11), "levemente_elevado")
+        self.assertEqual(d.faixa_findrisc(12), "moderado")
+        self.assertEqual(d.faixa_findrisc(14), "moderado")
+        self.assertEqual(d.faixa_findrisc(15), "alto")
+        self.assertEqual(d.faixa_findrisc(20), "alto")
+        self.assertEqual(d.faixa_findrisc(21), "muito_alto")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}FINDRISC{% endblock %}
+{% block content %}
+{% set faixas = {
+  'baixo': ('Baixo', 'risk-low', 'Cerca de 1 em 100 desenvolverá diabetes.'),
+  'levemente_elevado': ('Levemente elevado', 'risk-mid', 'Cerca de 1 em 25 desenvolverá diabetes.'),
+  'moderado': ('Moderado', 'risk-mid', 'Cerca de 1 em 6 desenvolverá diabetes.'),
+  'alto': ('Alto', 'risk-high', 'Cerca de 1 em 3 desenvolverá diabetes.'),
+  'muito_alto': ('Muito alto', 'risk-high', 'Cerca de 1 em 2 desenvolverá diabetes.')
+} %}
+<div class="page-head">
+  <div>
+    <h1>FINDRISC — risco de diabetes</h1>
+    <p class="lead">Probabilidade de desenvolver diabetes tipo 2 em 10 anos (rastreio opcional).</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Voltar</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <form method="post" class="panel" data-findrisc-form>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Idade <span class="text-faint">(anos)</span></label><input class="form-control" name="idade" type="number" value="{{ dados.get('idade', '') }}" required autofocus></div>
+        <div class="col-md-4">
+          <label class="form-label">Sexo</label>
+          <select class="form-select" name="sexo">
+            <option value="Masculino" {% if dados.get('sexo') != 'Feminino' %}selected{% endif %}>Masculino</option>
+            <option value="Feminino" {% if dados.get('sexo') == 'Feminino' %}selected{% endif %}>Feminino</option>
+          </select>
+        </div>
+        <div class="col-md-4"><label class="form-label">Circunferência da cintura <span class="text-faint">(cm)</span></label><input class="form-control" name="cintura" inputmode="decimal" value="{{ dados.get('cintura', '') }}" required></div>
+
+        <div class="col-md-4"><label class="form-label">Peso <span class="text-faint">(kg)</span></label><input class="form-control" name="peso" inputmode="decimal" value="{{ dados.get('peso', '') }}" required data-fr-peso></div>
+        <div class="col-md-4"><label class="form-label">Altura <span class="text-faint">(cm)</span></label><input class="form-control" name="estatura" inputmode="decimal" value="{{ dados.get('estatura', '') }}" required data-fr-altura></div>
+        <div class="col-md-4"><label class="form-label">IMC</label><input class="form-control" readonly data-fr-imc placeholder="—" value="{{ resultado.imc if resultado and resultado.imc else '' }}"></div>
+
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" name="atividade_fisica" id="atividade_fisica" {% if dados.get('atividade_fisica') %}checked{% endif %}>
+            <label class="form-check-label" for="atividade_fisica">Pratica ≥ 30 min de atividade física por dia</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" name="come_vegetais" id="come_vegetais" {% if dados.get('come_vegetais') %}checked{% endif %}>
+            <label class="form-check-label" for="come_vegetais">Come vegetais, frutas ou legumes todos os dias</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" name="medicamento_pressao" id="medicamento_pressao" {% if dados.get('medicamento_pressao') %}checked{% endif %}>
+            <label class="form-check-label" for="medicamento_pressao">Já tomou medicamento para pressão alta regularmente</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" name="glicemia_alta" id="glicemia_alta" {% if dados.get('glicemia_alta') %}checked{% endif %}>
+            <label class="form-check-label" for="glicemia_alta">Já teve glicose alta no sangue alguma vez</label>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Familiar/parente com diabetes (tipo 1 ou 2)</label>
+          {% set fam = dados.get('familiar_diabetes') %}
+          <select class="form-select" name="familiar_diabetes">
+            <option value="nao" {% if fam not in ('segundo_grau','primeiro_grau') %}selected{% endif %}>Não</option>
+            <option value="segundo_grau" {% if fam == 'segundo_grau' %}selected{% endif %}>Sim — avós, tio(a) ou primo(a) de 1º grau</option>
+            <option value="primeiro_grau" {% if fam == 'primeiro_grau' %}selected{% endif %}>Sim — pai, mãe, irmão(ã) ou filho(a)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <button class="btn btn-primary" type="submit">Calcular</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-5">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>Resultado</h2></div>
+      {% if resultado %}
+        {% set info = faixas.get(resultado.faixa, ('—', 'risk-none', '')) %}
+        <div class="erg-result">
+          <span class="erg-pct">{{ resultado.pontos }}<small style="font-size: 0.5em; color: var(--ink-faint);"> / 26</small></span>
+          <span class="badge-risk {{ info[1] }}">{{ info[0] }}</span>
+        </div>
+        <p class="text-secondary mb-0" style="font-size: 0.88rem;">{{ info[2] }}</p>
+      {% else %}
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <strong>Sem cálculo ainda</strong>
+          <span>Preencha os dados e clique em calcular.</span>
+        </div>
+      {% endif %}
+
+      <hr class="my-3" style="border-color: var(--border);">
+      <p class="text-secondary mb-1" style="font-size: 0.82rem; font-weight: 600;">Faixas (0–26 pontos)</p>
+      <ul class="text-faint" style="font-size: 0.82rem; line-height: 1.7; margin: 0; padding-left: 1.1rem;">
+        <li>Baixo: &lt; 7</li>
+        <li>Levemente elevado: 7–11</li>
+        <li>Moderado: 12–14</li>
+        <li>Alto: 15–20</li>
+        <li>Muito alto: &gt; 20</li>
+      </ul>
+
+      <div class="setup-note setup-note--key mt-3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>
+        <p>Escore Finlandês de Risco de Diabetes (FINDRISC), SBD 2024. Rastreio opcional; não substitui o julgamento clínico.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const form = document.querySelector("[data-findrisc-form]");
+    if (!form) return;
+    const peso = form.querySelector("[data-fr-peso]");
+    const altura = form.querySelector("[data-fr-altura]");
+    const imcOut = form.querySelector("[data-fr-imc]");
+    function calcImc() {
+      const p = parseFloat((peso.value || "").replace(",", "."));
+      const a = parseFloat((altura.value || "").replace(",", ".")) / 100;
+      imcOut.value = p > 0 && a > 0 ? (p / (a * a)).toFixed(1) : "";
+    }
+    peso.addEventListener("input", calcImc);
+    altura.addEventListener("input", calcImc);
+    if (!imcOut.value) calcImc();
+  })();
+</script>
+{% endblock %}

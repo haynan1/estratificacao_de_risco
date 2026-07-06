@@ -3,7 +3,6 @@
 {% block content %}
 {% set feminino = (paciente.sexo or '')|lower in ['f', 'feminino'] %}
 {% set diabetes = paciente.dm2 or paciente.dm1 %}
-{% set base_atual = paciente.ercv_base or 'exames' %}
 <div class="page-head">
   <div>
     <h1>Calculadora de risco cardiovascular</h1>
@@ -14,7 +13,7 @@
 
 <div class="row g-3">
   <div class="col-lg-7">
-    <form method="post" class="panel" data-erg-form>
+    <form method="post" class="panel">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <p class="text-secondary mb-3">
@@ -22,56 +21,28 @@
         <strong>faixa do ERCV</strong> usada na estratificação (Nota Técnica de DM).
       </p>
 
-      <label class="form-label">Base do cálculo</label>
-      <div class="erg-base-toggle mb-3" role="radiogroup">
-        <label class="erg-base-option">
-          <input type="radio" name="base" value="exames" {% if base_atual != 'imc' %}checked{% endif %} data-erg-base>
-          <span><strong>Exames</strong><small>Colesterol total e HDL</small></span>
-        </label>
-        <label class="erg-base-option">
-          <input type="radio" name="base" value="imc" {% if base_atual == 'imc' %}checked{% endif %} data-erg-base>
-          <span><strong>IMC</strong><small>Peso e altura (sem exames)</small></span>
-        </label>
-      </div>
-
       <div class="row g-3">
         <div class="col-md-4"><label class="form-label">Idade <span class="text-faint">(cadastro)</span></label><input class="form-control" value="{{ paciente.idade or '—' }}" readonly></div>
         <div class="col-md-4"><label class="form-label">Sexo</label><input class="form-control" value="{{ 'Feminino' if feminino else ('Masculino' if paciente.sexo else '—') }}" readonly></div>
         <div class="col-md-4"><label class="form-label">Diabetes</label><input class="form-control" value="{{ 'Sim' if diabetes else 'Não' }}" readonly></div>
 
-        <div class="col-md-6"><label class="form-label">PAS <span class="text-faint">(mmHg)</span></label><input class="form-control" name="pas" type="number" value="{{ avaliacao.pas or paciente.pas or '' }}" required></div>
-        <div class="col-md-3">
-          <div class="form-check form-switch mt-4">
+        <div class="col-md-4"><label class="form-label">Colesterol total <span class="text-faint">(mg/dL)</span></label><input class="form-control" name="ct" inputmode="decimal" value="{{ avaliacao.ct or '' }}" required autofocus></div>
+        <div class="col-md-4"><label class="form-label">HDL <span class="text-faint">(mg/dL)</span></label><input class="form-control" name="hdl" inputmode="decimal" value="{{ avaliacao.hdl or '' }}" required></div>
+        <div class="col-md-4"><label class="form-label">PAS <span class="text-faint">(mmHg)</span></label><input class="form-control" name="pas" type="number" value="{{ avaliacao.pas or paciente.pas or '' }}" required></div>
+
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
             <input class="form-check-input" type="checkbox" name="anti_hipertensivo" id="anti_hipertensivo" {% if avaliacao.anti_hipertensivo %}checked{% endif %}>
-            <label class="form-check-label" for="anti_hipertensivo">Anti-HAS</label>
+            <label class="form-check-label" for="anti_hipertensivo">Em uso de anti-hipertensivo</label>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="form-check form-switch mt-4">
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
             <input class="form-check-input" type="checkbox" name="fumante" id="fumante" {% if avaliacao.fumante or paciente.tabagismo %}checked{% endif %}>
             <label class="form-check-label" for="fumante">Fumante</label>
           </div>
         </div>
       </div>
-
-      <!-- Base: exames -->
-      <fieldset class="erg-group mt-3" data-erg-group="exames">
-        <legend>Exames laboratoriais</legend>
-        <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">Colesterol total <span class="text-faint">(mg/dL)</span></label><input class="form-control" name="ct" inputmode="decimal" value="{{ avaliacao.ct or '' }}"></div>
-          <div class="col-md-6"><label class="form-label">HDL <span class="text-faint">(mg/dL)</span></label><input class="form-control" name="hdl" inputmode="decimal" value="{{ avaliacao.hdl or '' }}"></div>
-        </div>
-      </fieldset>
-
-      <!-- Base: IMC (opcional) -->
-      <fieldset class="erg-group mt-3" data-erg-group="imc">
-        <legend>Antropometria <span class="text-faint">(opcional)</span></legend>
-        <div class="row g-3">
-          <div class="col-md-4"><label class="form-label">Peso <span class="text-faint">(kg)</span></label><input class="form-control" name="peso" inputmode="decimal" value="{{ paciente.peso or '' }}" data-erg-peso></div>
-          <div class="col-md-4"><label class="form-label">Altura <span class="text-faint">(cm)</span></label><input class="form-control" name="estatura" inputmode="decimal" value="{{ paciente.estatura or '' }}" data-erg-altura></div>
-          <div class="col-md-4"><label class="form-label">IMC</label><input class="form-control" value="" readonly data-erg-imc placeholder="—"></div>
-        </div>
-      </fieldset>
 
       <div class="d-flex justify-content-end gap-2 mt-4">
         <button class="btn btn-primary" type="submit">Calcular e aplicar</button>
@@ -89,14 +60,12 @@
             {{ {'baixo':'Baixo','intermediario':'Intermediário','alto':'Alto'}.get(paciente.ercv_faixa, '—') }}
           </span>
         </div>
-        <p class="text-secondary mb-0" style="font-size: 0.85rem;">
-          Risco em 10 anos · base {{ 'IMC' if paciente.ercv_base == 'imc' else 'exames' }}.
-        </p>
+        <p class="text-secondary mb-0" style="font-size: 0.85rem;">Risco de evento cardiovascular em 10 anos.</p>
       {% else %}
         <div class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           <strong>Sem cálculo ainda</strong>
-          <span>Escolha a base, preencha os dados e calcule.</span>
+          <span>Preencha os exames e clique em calcular.</span>
         </div>
       {% endif %}
 
@@ -111,41 +80,11 @@
       <div class="setup-note setup-note--key mt-3">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>
         <p>
-          Escore de Risco Global (D'Agostino 2008) — versões por exames e por IMC,
-          as mesmas da calculadora estadual. Apoio à decisão; <strong>validar clinicamente</strong>.
+          Escore de Risco Global em pontos (Tabelas oficiais SES-GO), o mesmo da
+          calculadora estadual. Apoio à decisão; <strong>validar clinicamente</strong>.
         </p>
       </div>
     </section>
   </div>
 </div>
-
-<script>
-  (function () {
-    const form = document.querySelector("[data-erg-form]");
-    if (!form) return;
-    const grupos = form.querySelectorAll("[data-erg-group]");
-    const peso = form.querySelector("[data-erg-peso]");
-    const altura = form.querySelector("[data-erg-altura]");
-    const imcOut = form.querySelector("[data-erg-imc]");
-
-    function baseSelecionada() {
-      const r = form.querySelector("[data-erg-base]:checked");
-      return r ? r.value : "exames";
-    }
-    function aplicarBase() {
-      const base = baseSelecionada();
-      grupos.forEach((g) => g.classList.toggle("is-active", g.dataset.ergGroup === base));
-    }
-    function calcularImc() {
-      const p = parseFloat((peso.value || "").replace(",", "."));
-      const a = parseFloat((altura.value || "").replace(",", ".")) / 100;
-      imcOut.value = p > 0 && a > 0 ? (p / (a * a)).toFixed(1) : "";
-    }
-    form.querySelectorAll("[data-erg-base]").forEach((r) => r.addEventListener("change", aplicarBase));
-    if (peso) peso.addEventListener("input", calcularImc);
-    if (altura) altura.addEventListener("input", calcularImc);
-    aplicarBase();
-    calcularImc();
-  })();
-</script>
 {% endblock %}

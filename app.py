@@ -25,11 +25,12 @@ from domain import (
     PREVENT_STATUS,
     PREVENT_STATUS_VALUES,
     calcular_erg,
-    calcular_erg_imc,
+    calcular_findrisc,
     calculate_age,
     calculate_imc,
     calculate_prevent,
     faixa_erg,
+    faixa_findrisc,
     is_prevent_status,
     recalculate_cronico,
     recalculate_gestante,
@@ -840,6 +841,41 @@ def register_routes(app):
         flash("Registro de pessoa idosa removido.", "warning")
         return redirect(url_for("lista_idosos"))
 
+    @app.route("/findrisc", methods=["GET", "POST"])
+    def findrisc():
+        # Calculadora avulsa (opcional): risco de desenvolver DM2 em 10 anos.
+        resultado = None
+        dados = {}
+        if request.method == "POST":
+            dados = request.form
+            imc = calculate_imc(
+                parse_float(request.form.get("peso")),
+                parse_float(request.form.get("estatura")),
+            )
+            pontos = calcular_findrisc(
+                parse_int(request.form.get("idade")),
+                imc,
+                parse_float(request.form.get("cintura")),
+                request.form.get("sexo"),
+                atividade_fisica=("atividade_fisica" in request.form),
+                come_vegetais_diario=("come_vegetais" in request.form),
+                medicamento_pressao=("medicamento_pressao" in request.form),
+                glicemia_alta=("glicemia_alta" in request.form),
+                familiar_diabetes=request.form.get("familiar_diabetes"),
+            )
+            if pontos is None:
+                flash(
+                    "Para calcular, informe idade, peso, altura e circunferência da cintura.",
+                    "warning",
+                )
+            else:
+                resultado = {
+                    "pontos": pontos,
+                    "faixa": faixa_findrisc(pontos),
+                    "imc": round(imc, 1) if imc else None,
+                }
+        return render_template("form_findrisc.html", resultado=resultado, dados=dados)
+
     @app.route("/cronicos/<int:id>/prevent", methods=["GET", "POST"])
     def prevent(id):
         paciente = PacienteCronico.query.get_or_404(id)
@@ -864,7 +900,6 @@ def register_routes(app):
         # mesmos insumos do PREVENT), evitando redigitar exames.
         avaliacao = paciente.avaliacao_prevent or AvaliacaoPrevent()
         if request.method == "POST":
-            base = "imc" if request.form.get("base") == "imc" else "exames"
             avaliacao.ct = parse_float(request.form.get("ct"))
             avaliacao.hdl = parse_float(request.form.get("hdl"))
             avaliacao.pas = parse_int(request.form.get("pas")) or paciente.pas
@@ -873,46 +908,30 @@ def register_routes(app):
             avaliacao.paciente = paciente
             db.session.add(avaliacao)
 
-            # Peso e altura são opcionais — só entram no cálculo se a base for IMC.
-            paciente.peso = parse_float(request.form.get("peso"))
-            paciente.estatura = parse_float(request.form.get("estatura"))
             diabetes = bool(paciente.dm2 or paciente.dm1)
-
-            if base == "imc":
-                risco = calcular_erg_imc(
-                    paciente.sexo, paciente.idade,
-                    calculate_imc(paciente.peso, paciente.estatura),
-                    avaliacao.pas, avaliacao.anti_hipertensivo, avaliacao.fumante, diabetes,
-                )
-                falta = "peso e altura"
-            else:
-                risco = calcular_erg(
-                    paciente.sexo, paciente.idade, avaliacao.ct, avaliacao.hdl,
-                    avaliacao.pas, avaliacao.anti_hipertensivo, avaliacao.fumante, diabetes,
-                )
-                falta = "colesterol total e HDL"
-
+            risco = calcular_erg(
+                paciente.sexo, paciente.idade, avaliacao.ct, avaliacao.hdl,
+                avaliacao.pas, avaliacao.anti_hipertensivo, avaliacao.fumante, diabetes,
+            )
             if risco is None:
                 flash(
-                    f"Para calcular por {'IMC' if base == 'imc' else 'exames'}, informe "
-                    f"{falta} e PAS, e confira idade e sexo do paciente.",
+                    "Para calcular, informe colesterol total, HDL e PAS, e confira "
+                    "idade e sexo do paciente.",
                     "warning",
                 )
                 return render_template("form_erg.html", paciente=paciente, avaliacao=avaliacao)
 
-            paciente.ercv_base = base
             paciente.ercv_percentual = round(risco * 100, 1)
             paciente.ercv_faixa = faixa_erg(risco, paciente.sexo)
             recalculate_cronico(paciente)
             registrar_auditoria(
                 "erg", "cronico", paciente.id,
-                f"{paciente.ercv_percentual}% ({paciente.ercv_faixa}, base {base})",
+                f"{paciente.ercv_percentual}% ({paciente.ercv_faixa})",
             )
             db.session.commit()
             flash(
                 f"Risco cardiovascular em 10 anos: {paciente.ercv_percentual}% — "
-                f"faixa “{paciente.ercv_faixa}” (base {'IMC' if base == 'imc' else 'exames'}). "
-                "Estratificação atualizada.",
+                f"faixa “{paciente.ercv_faixa}”. Estratificação atualizada.",
                 "success",
             )
             return redirect(url_for("lista_cronicos"))

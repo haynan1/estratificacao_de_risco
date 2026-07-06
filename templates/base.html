@@ -59,6 +59,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5a1.5 1.5 0 0 0 1.5 1.5H21"/><rect x="7" y="11" width="3" height="6" rx="0.8"/><rect x="12" y="7" width="3" height="10" rx="0.8"/><rect x="17" y="13" width="3" height="4" rx="0.8"/></svg>
             <span>Relatórios</span>
           </a>
+          <a class="nav-item {{ 'is-active' if ep == 'findrisc' }}" href="{{ url_for('findrisc') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0H5a2 2 0 0 1-2-2v-4m6 6h10a2 2 0 0 0 2-2v-4M3 9h18M3 15h18"/></svg>
+            <span>FINDRISC</span>
+          </a>
 
           <span class="nav-section">Cadastros</span>
           <a class="nav-item {{ 'is-active' if ep in ['lista_agentes','novo_agente','editar_agente','alternar_agente','excluir_agente'] }}" href="{{ url_for('lista_agentes') }}">
