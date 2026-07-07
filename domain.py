@@ -31,6 +31,56 @@ IDOSO_RISCO_FRAGILIZACAO = "Idoso em risco de fragilização"
 IDOSO_FRAGIL = "Idoso frágil"
 
 
+# ----------------------------------------------------------------------------
+# Comparação de gravidade entre estratos — base do histórico de evolução
+# ----------------------------------------------------------------------------
+# Ordena os rótulos de risco dos três módulos (crônico, gestante, idoso) numa
+# escala única, onde 0 é o melhor cenário e valores maiores são mais graves.
+# Rótulos sem posição clínica comparável (pendências, ex.: "Calcular ERCV")
+# ficam de fora: resultam em "atualizado", nunca em falso "subiu/desceu".
+_RISCO_RANK = {
+    RISCO_SEM_ADICIONAL: 0,
+    RISCO_BAIXO: 1,
+    "RISCO HABITUAL": 1,
+    IDOSO_ROBUSTO: 1,
+    RISCO_INTERMEDIARIO: 2,
+    RISCO_MODERADO: 2,
+    RISCO_MEDIO: 2,
+    "RISCO INTERMEDIÁRIO": 2,
+    IDOSO_RISCO_FRAGILIZACAO: 2,
+    RISCO_ALTO: 3,
+    "ALTO RISCO": 3,
+    IDOSO_FRAGIL: 3,
+    RISCO_MUITO_ALTO: 4,
+    RISCO_EXTREMO: 5,
+}
+
+
+def risco_rank(rotulo):
+    """Posição do rótulo na escala de gravidade, ou None se não for comparável."""
+    return _RISCO_RANK.get((rotulo or "").strip())
+
+
+def comparar_risco(anterior, atual):
+    """Direção da mudança de estratificação, para o histórico do paciente.
+
+    Retorna: "inicial" (primeira avaliação), "desceu" (risco reduzido/melhora),
+    "subiu" (risco aumentou), "manteve" (mesmo nível) ou "atualizado" (mudança
+    entre um estado e uma pendência, sem comparação de gravidade possível).
+    """
+    if not anterior:
+        return "inicial"
+    ra = risco_rank(anterior)
+    rn = risco_rank(atual)
+    if ra is None or rn is None:
+        return "manteve" if (anterior or "") == (atual or "") else "atualizado"
+    if rn < ra:
+        return "desceu"
+    if rn > ra:
+        return "subiu"
+    return "manteve"
+
+
 def is_prevent_status(value):
     return (value or "").lower() == "calcular prevent"
 

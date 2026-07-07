@@ -98,4 +98,35 @@
     <button class="btn btn-primary" type="submit">Salvar</button>
   </div>
 </form>
+
+<details class="form-field-guide">
+  <summary class="form-field-guide-toggle">
+    <span>
+      <span class="guide-kicker">Legenda</span>
+      <strong id="legenda-cronico">Campos preenchidos pelo sistema</strong>
+    </span>
+    <span class="guide-toggle-text" aria-hidden="true"></span>
+  </summary>
+  <div class="form-field-guide-body" aria-labelledby="legenda-cronico">
+  <p>Alguns campos ficam bloqueados para evitar alteração manual de resultados calculados. Para mudar esses valores, ajuste o dado de origem e salve novamente.</p>
+  <div class="guide-list">
+    <div class="guide-item">
+      <strong>Idade</strong>
+      <span>Calculada pela data de nascimento. Ao alterar a data, a idade é atualizada automaticamente no formulário e confirmada ao salvar.</span>
+    </div>
+    <div class="guide-item">
+      <strong>Risco estratificado</strong>
+      <span>Calculado ao salvar. Usa HAS, diabetes, pré-diabetes, pressão, HbA1c, faixa ERCV, lesão de órgão-alvo, DRC, aterosclerose, complicações, internações e demais fatores marcados.</span>
+    </div>
+    <div class="guide-item">
+      <strong>Exames cardiovasculares</strong>
+      <span>Atualizado ao salvar conforme a avaliação cardiovascular: fica “Solicitar” quando faltam exames, “Exame há + 6m” quando estão antigos e “Adequado” quando estão dentro do prazo.</span>
+    </div>
+    <div class="guide-item">
+      <strong>PAS e PAD</strong>
+      <span>Extraídas do campo “Última PA”. Use o formato 140/90 para o sistema separar PAS (sistólica) e PAD (diastólica), usadas na estratificação da hipertensão.</span>
+    </div>
+  </div>
+  </div>
+</details>
 {% endblock %}

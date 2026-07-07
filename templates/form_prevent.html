@@ -40,4 +40,51 @@
     <button class="btn btn-primary" type="submit">Salvar e calcular Prevent</button>
   </div>
 </form>
+
+<details class="form-field-guide">
+  <summary class="form-field-guide-toggle">
+    <span>
+      <span class="guide-kicker">Legenda</span>
+      <strong id="legenda-prevent">Campos preenchidos pelo sistema</strong>
+    </span>
+    <span class="guide-toggle-text" aria-hidden="true"></span>
+  </summary>
+  <div class="form-field-guide-body" aria-labelledby="legenda-prevent">
+    <p>Os campos bloqueados mostram valores preparados pelo sistema para a fórmula PREVENT. Para mudar o resultado, ajuste os exames, a pressão ou os dados do cadastro do paciente e salve novamente.</p>
+    <div class="guide-list">
+      <div class="guide-item">
+        <strong>Idade calc.</strong>
+        <span>Vem da idade do cadastro do paciente. Para a fórmula, o sistema limita o valor entre 30 e 79 anos.</span>
+      </div>
+      <div class="guide-item">
+        <strong>CT calc.</strong>
+        <span>Usa o colesterol total informado em CT. Para o cálculo, o valor é limitado entre 130 e 320 mg/dL.</span>
+      </div>
+      <div class="guide-item">
+        <strong>HDL calc.</strong>
+        <span>Usa o HDL informado. Para o cálculo, o valor é limitado entre 20 e 100 mg/dL.</span>
+      </div>
+      <div class="guide-item">
+        <strong>PAS calc.</strong>
+        <span>Usa a PAS informada nesta tela; se estiver vazia, busca a pressão sistólica do cadastro do crônico. Para o cálculo, fica entre 90 e 200 mmHg.</span>
+      </div>
+      <div class="guide-item">
+        <strong>TFG CKD-EPI</strong>
+        <span>Calculada pela creatinina, idade e sexo do paciente, usando a equação CKD-EPI.</span>
+      </div>
+      <div class="guide-item">
+        <strong>TFG calc.</strong>
+        <span>Usa a TFG CKD-EPI calculada e limita o valor entre 15 e 140 para entrar na fórmula PREVENT.</span>
+      </div>
+      <div class="guide-item">
+        <strong>log-Odds</strong>
+        <span>Resultado interno da equação PREVENT. Ele combina idade, colesterol, HDL, PAS, TFG, diabetes, tabagismo, anti-hipertensivo e estatina.</span>
+      </div>
+      <div class="guide-item">
+        <strong>Risco cardiovascular 10 anos</strong>
+        <span>Percentual final estimado a partir do log-Odds. Se faltar CT, HDL, PAS ou creatinina, aparece “Inserir exames”. Em risco extremo ou muito alto, aparece “Não aplicável”.</span>
+      </div>
+    </div>
+  </div>
+</details>
 {% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Histórico do paciente{% endblock %}
+{% block content %}
+{% set rotulos = {
+  'inicial':    {'txt': 'Primeira avaliação', 'cls': 'tl-neutral'},
+  'desceu':     {'txt': 'Risco reduzido',     'cls': 'tl-down'},
+  'subiu':      {'txt': 'Risco aumentou',     'cls': 'tl-up'},
+  'manteve':    {'txt': 'Nível mantido',      'cls': 'tl-neutral'},
+  'atualizado': {'txt': 'Atualização',        'cls': 'tl-neutral'}
+} %}
+{% set tipo_label = {'cronico': 'Paciente crônico', 'gestante': 'Gestante', 'idoso': 'Pessoa idosa'}.get(tipo, 'Paciente') %}
+
+<div class="page-head">
+  <div>
+    <h1>Histórico do paciente</h1>
+    <p class="lead">{{ nome }} · {{ tipo_label }}</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for(lista_endpoint) }}">Voltar</a>
+</div>
+
+<section class="history-summary panel mb-3">
+  <div>
+    <span class="history-kicker">Classificação atual</span>
+    <strong>{{ risco_atual or 'Não classificado' }}</strong>
+  </div>
+  <div>
+    <span class="history-kicker">Movimentações</span>
+    <strong>{{ registros|length }}</strong>
+    <small>registro{{ 's' if registros|length != 1 }} de mudança</small>
+  </div>
+  <div>
+    <span class="history-kicker">Dados salvos</span>
+    <strong>{{ secoes_dados|length }}</strong>
+    <small>seção{{ 'ões' if secoes_dados|length != 1 else '' }} do cadastro</small>
+  </div>
+</section>
+
+<div class="history-layout">
+  <section class="history-main">
+    <div class="panel-head history-section-head">
+      <div>
+        <h2>Linha do tempo do risco</h2>
+        <p>Mostra quando a estratificação mudou e qual foi o resultado salvo.</p>
+      </div>
+    </div>
+
+    {% if registros %}
+      <ol class="timeline">
+        {% for r in registros %}
+          {% set meta = rotulos.get(r.tendencia, rotulos['atualizado']) %}
+          <li class="timeline-item {{ meta.cls }}">
+            <span class="tl-marker" aria-hidden="true">
+              {% if r.tendencia == 'desceu' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+              {% elif r.tendencia == 'subiu' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+              {% elif r.tendencia == 'inicial' %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4"/><path d="M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>
+              {% else %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+              {% endif %}
+            </span>
+            <div class="tl-body">
+              <div class="tl-head">
+                <span class="tl-tag">{{ meta.txt }}</span>
+                <time class="tl-time">{{ r.criado_em.strftime('%d/%m/%Y às %H:%M') }}</time>
+              </div>
+              <p class="tl-flow">
+                {% if r.risco_anterior %}
+                  <span class="tl-from">{{ r.risco_anterior }}</span>
+                  <span class="tl-arrow" aria-label="para">→</span>
+                {% endif %}
+                <span class="tl-to">{{ r.risco }}</span>
+              </p>
+              {% if r.detalhe %}<p class="tl-detail">{{ r.detalhe }}</p>{% endif %}
+              {% if r.autor %}<p class="tl-author">Registrado por {{ r.autor }}</p>{% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <div class="panel">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <strong>Sem histórico ainda</strong>
+          <span>O primeiro registro aparece quando o paciente é avaliado ou tem o risco atualizado.</span>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  <aside class="history-data">
+    <div class="panel-head history-section-head">
+      <div>
+        <h2>Dados salvos</h2>
+        <p>Informações atuais gravadas no cadastro e nas etapas deste paciente.</p>
+      </div>
+    </div>
+
+    <div class="history-data-stack">
+      {% for secao in secoes_dados %}
+        <details class="history-data-section" {% if loop.first %}open{% endif %}>
+          <summary>
+            <span>
+              <strong>{{ secao.titulo }}</strong>
+              {% if secao.descricao %}<small>{{ secao.descricao }}</small>{% endif %}
+            </span>
+            <span class="history-toggle" aria-hidden="true"></span>
+          </summary>
+          <dl class="history-field-grid">
+            {% for campo in secao.campos %}
+              <div class="history-field {{ 'is-empty' if campo.vazio }} {{ 'is-auto' if campo.automatico }}">
+                <dt>
+                  {{ campo.rotulo }}
+                  {% if campo.automatico %}<span>auto</span>{% endif %}
+                </dt>
+                <dd>{{ campo.valor }}</dd>
+              </div>
+            {% endfor %}
+          </dl>
+        </details>
+      {% endfor %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

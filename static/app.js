@@ -14,13 +14,46 @@ document.querySelectorAll("[data-cpf-mask]").forEach((input) => {
   });
 });
 
-// ---------- Age from birth date ----------
+// ---------- Blood pressure mask ----------
+function formatBloodPressure(value) {
+  const text = value || "";
+  const hasSlash = text.includes("/");
+  if (hasSlash) {
+    const [pas = "", pad = ""] = text.split("/");
+    const pasDigits = pas.replace(/\D/g, "").slice(0, 3);
+    const padDigits = pad.replace(/\D/g, "").slice(0, 3);
+    return padDigits || text.endsWith("/") ? `${pasDigits}/${padDigits}` : pasDigits;
+  }
+
+  const digits = text.replace(/\D/g, "").slice(0, 6);
+  if (digits.length <= 3) return digits;
+  if (digits.length === 4) {
+    const possiblePas = Number(digits.slice(0, 3));
+    if (possiblePas >= 80 && possiblePas <= 250) {
+      return `${digits.slice(0, 3)}/${digits.slice(3)}`;
+    }
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+  return `${digits.slice(0, 3)}/${digits.slice(3)}`;
+}
+
+document.querySelectorAll("[data-pa-mask]").forEach((input) => {
+  input.value = formatBloodPressure(input.value);
+  input.addEventListener("input", () => {
+    input.value = formatBloodPressure(input.value);
+  });
+  input.addEventListener("blur", () => {
+    input.value = formatBloodPressure(input.value);
+  });
+});
+
+// ---------- Date inputs ----------
 function isValidDateParts(year, month, day) {
   const date = new Date(year, month - 1, day);
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
-function normalizeBirthDate(value) {
+function normalizeDateValue(value) {
   const text = (value || "").trim();
   if (!text) return "";
 
@@ -61,6 +94,19 @@ function normalizeBirthDate(value) {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+document.querySelectorAll('input[type="date"]').forEach((dateInput) => {
+  dateInput.addEventListener("paste", (event) => {
+    const normalizedDate = normalizeDateValue(event.clipboardData?.getData("text"));
+    if (!normalizedDate) return;
+
+    event.preventDefault();
+    dateInput.value = normalizedDate;
+    dateInput.dispatchEvent(new Event("input", { bubbles: true }));
+    dateInput.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+});
+
+// ---------- Age from birth date ----------
 function calculateAgeFromDate(value) {
   if (!value) return "";
   const birthDate = new Date(`${value}T00:00:00`);
@@ -85,14 +131,6 @@ document.querySelectorAll("[data-birth-date]").forEach((birthInput) => {
 
   birthInput.addEventListener("change", updateAge);
   birthInput.addEventListener("input", updateAge);
-  birthInput.addEventListener("paste", (event) => {
-    const normalizedDate = normalizeBirthDate(event.clipboardData?.getData("text"));
-    if (!normalizedDate) return;
-
-    event.preventDefault();
-    birthInput.value = normalizedDate;
-    updateAge();
-  });
   updateAge();
 });
 
@@ -200,7 +238,7 @@ document.querySelectorAll("[data-flash-close]").forEach((button) => {
 
 // ---------- Animate risk bars on entry ----------
 function animateBars() {
-  document.querySelectorAll(".track-fill[data-width]").forEach((fill) => {
+  document.querySelectorAll(".track-fill[data-width], .dash-bar-fill[data-width]").forEach((fill) => {
     requestAnimationFrame(() => {
       fill.style.width = `${fill.dataset.width}%`;
     });

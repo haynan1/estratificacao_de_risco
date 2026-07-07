@@ -62,6 +62,9 @@
             </td>
             <td><span class="tag">{{ paciente.estrato_clinico_funcional or "—" }}</span></td>
             <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('historico_paciente', tipo='idoso', id=paciente.id) }}" title="Histórico de risco" aria-label="Histórico de risco">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>
+              </a>
               <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('editar_idoso', id=paciente.id) }}">Editar</a>
               <form class="d-inline" method="post" action="{{ url_for('excluir_idoso', id=paciente.id) }}" data-confirm-form data-confirm-title="Remover registro" data-confirm-message="Remover este registro de pessoa idosa? Esta ação não poderá ser desfeita.">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

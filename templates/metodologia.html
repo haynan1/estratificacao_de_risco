@@ -1,323 +1,241 @@
 {% extends "base.html" %}
-{% block title %}Metodologia{% endblock %}
+{% block title %}Manual do sistema{% endblock %}
 {% block content %}
 {% set pdf = 'notas_tecnicas/' %}
-<div class="doc-wrap">
+<div class="doc-wrap" id="manual-top">
 
   <div class="page-head">
     <div>
-      <h1>Metodologia &amp; documentação técnica</h1>
-      <p class="lead">Como cada estratificação de risco foi arquitetada — com as regras, os exemplos e as notas técnicas oficiais.</p>
+      <h1>Manual do sistema</h1>
+      <p class="lead">Um guia claro de como o sistema classifica o risco de cada paciente — e como usar isso no dia a dia.</p>
     </div>
   </div>
 
   <div class="doc-lead-note">
     <p>
-      Este sistema não “inventa” risco: ele reproduz, em código auditável, os instrumentos
-      oficiais da <strong>Secretaria de Estado da Saúde de Goiás (SES-GO)</strong>, os mesmos da
-      <strong>calculadora estadual</strong> (calculadora-risco.saude.go.gov.br). Cada cálculo abaixo
-      cita a nota técnica de origem, mostra a regra exata implementada e traz um exemplo resolvido —
-      no espírito de uma documentação de referência.
+      Este sistema é uma <strong>ferramenta de apoio à decisão</strong>. Ele não inventa o risco de
+      ninguém: reproduz, passo a passo, os mesmos critérios das <strong>notas técnicas oficiais da
+      Secretaria de Estado da Saúde de Goiás</strong> — os mesmos da calculadora do estado. Você
+      informa os dados do paciente; o sistema aplica a regra oficial e mostra o resultado.
     </p>
     <p>
-      Toda a lógica clínica vive em <code>domain.py</code>: <strong>funções puras</strong>, sem Flask e
-      sem banco de dados. Elas recebem valores e devolvem o resultado, o que as torna testáveis e
-      audíveis isoladamente (cobertas por <code>tests/test_domain.py</code>). É <strong>apoio à
-      decisão</strong> — não substitui o julgamento clínico.
+      A palavra final é sempre do profissional de saúde. O sistema organiza, calcula e acompanha —
+      <strong>não substitui a avaliação clínica</strong>. Ao final desta página você pode baixar todas
+      as notas técnicas originais.
     </p>
   </div>
 
   <nav class="doc-toc" aria-label="Índice">
-    <a href="#arquitetura"><span class="num">00</span> Arquitetura</a>
-    <a href="#cardiovascular"><span class="num">01</span> Risco cardiovascular (ERG)</a>
-    <a href="#findrisc"><span class="num">02</span> FINDRISC (diabetes)</a>
-    <a href="#diabetes"><span class="num">03</span> Estratificação do DM</a>
-    <a href="#hipertensao"><span class="num">04</span> Estratificação da HAS</a>
-    <a href="#idoso"><span class="num">05</span> Vulnerabilidade do idoso</a>
-    <a href="#gestante"><span class="num">06</span> Estratificação da gestante</a>
+    <a href="#ler"><span class="num">01</span> Como ler o resultado</a>
+    <a href="#historico"><span class="num">02</span> Acompanhar a evolução</a>
+    <a href="#cardiovascular"><span class="num">03</span> Risco do coração</a>
+    <a href="#findrisc"><span class="num">04</span> Risco de diabetes</a>
+    <a href="#diabetes"><span class="num">05</span> Quem já tem diabetes</a>
+    <a href="#hipertensao"><span class="num">06</span> Quem tem pressão alta</a>
+    <a href="#idoso"><span class="num">07</span> Pessoa idosa</a>
+    <a href="#gestante"><span class="num">08</span> Gestantes</a>
+    <a href="#downloads"><span class="num">09</span> Documentos oficiais</a>
   </nav>
 
-  <!-- ============================ DOWNLOADS ============================ -->
-  <section class="panel" aria-labelledby="docs-titulo">
-    <div class="panel-head"><h2 id="docs-titulo">Notas técnicas oficiais (download)</h2></div>
-    <p class="text-secondary" style="font-size:0.88rem; margin:-0.3rem 0 1.1rem;">
-      Documentos-fonte preservados no sistema. Todos publicados pela SES-GO. Clique para baixar o PDF.
-    </p>
-    {% set svg_pdf %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>{% endset %}
-    <div class="doc-downloads">
-      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'risco-cardiovascular.pdf') }}" download>
-        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
-        <span class="doc-file-meta"><strong>Risco Cardiovascular</strong><small>Escore de Risco Global — SES-GO</small></span>
-      </a>
-      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'findrisc.pdf') }}" download>
-        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
-        <span class="doc-file-meta"><strong>FINDRISC</strong><small>Escore finlandês de risco de DM2</small></span>
-      </a>
-      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'diabetes.pdf') }}" download>
-        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
-        <span class="doc-file-meta"><strong>Diabetes Mellitus</strong><small>Res. CIB nº 1193/2025</small></span>
-      </a>
-      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'hipertensao.pdf') }}" download>
-        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
-        <span class="doc-file-meta"><strong>Hipertensão Arterial</strong><small>NT 11/2021 — estratificação</small></span>
-      </a>
-      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'obesidade.pdf') }}" download>
-        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
-        <span class="doc-file-meta"><strong>Obesidade</strong><small>Res. CIB nº 1194/2025</small></span>
-      </a>
-      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'autocuidado-diabetes.pdf') }}" download>
-        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
-        <span class="doc-file-meta"><strong>Escala de Autocuidado (DM)</strong><small>Instrumento complementar</small></span>
-      </a>
-    </div>
-  </section>
-
-  <!-- ============================ 00 ARQUITETURA ============================ -->
-  <section class="doc-section" id="arquitetura">
-    <div class="doc-section-head"><span class="num">00</span><h2>Arquitetura do motor clínico</h2></div>
+  <!-- ============================ 01 COMO LER ============================ -->
+  <section class="doc-section" id="ler">
+    <div class="doc-section-head"><span class="num">01</span><h2>Como ler o resultado de risco</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
     <p class="doc-objetivo">
-      Antes das fórmulas, a decisão estrutural que sustenta tudo: separar <em>o que se calcula</em>
-      de <em>como o dado trafega</em>.
+      Todo paciente recebe uma <strong>classificação de risco</strong>, mostrada por uma etiqueta
+      colorida. Quanto mais alto o risco, mais atenção e acompanhamento aquele paciente precisa.
     </p>
 
-    <p class="doc-h3">Três camadas, responsabilidades limpas</p>
+    <p class="doc-h3">As cores e o que significam</p>
     <ul>
-      <li><strong><code>domain.py</code></strong> — o motor clínico. Funções puras que recebem o paciente (ou números crus) e devolvem risco/faixa. Nenhuma dependência de Flask ou SQL. É aqui que mora toda regra desta página.</li>
-      <li><strong><code>models.py</code></strong> — os dados. Modelos SQLAlchemy (paciente crônico, gestante, idoso, avaliação). Guardam o estado; não decidem risco.</li>
-      <li><strong><code>app.py</code></strong> — o transporte. Rotas HTTP que leem o formulário, chamam <code>domain.py</code> e renderizam. Fina de propósito.</li>
-    </ul>
-
-    <p class="doc-h3">Por que isso importa</p>
-    <ul>
-      <li><strong>Auditável</strong> — um profissional pode ler <code>domain.py</code> e conferir a regra contra a nota técnica, linha a linha, sem atravessar código web.</li>
-      <li><strong>Testável</strong> — cada função é exercida em <code>tests/test_domain.py</code> com valores conhecidos das tabelas oficiais.</li>
-      <li><strong>Tabelas como dados</strong> — pontuações (ERG, FINDRISC, IVCF-20) são estruturas de dados, não <code>if</code>s soltos. Trocar um ponto = trocar um número, não reescrever lógica.</li>
-      <li><strong>Tolerância a schema antigo</strong> — o helper <code>_flag()</code> lê booleanos tratando <code>NULL</code> (colunas novas em bancos migrados) como <code>False</code>, então uma migração nunca quebra a estratificação.</li>
+      <li><strong>Verde (baixo)</strong> — situação controlada. Manter o acompanhamento de rotina.</li>
+      <li><strong>Amarelo (moderado / intermediário)</strong> — merece atenção e reavaliação mais frequente.</li>
+      <li><strong>Vermelho (alto, muito alto)</strong> — prioridade. Costuma exigir acompanhamento mais próximo e, muitas vezes, apoio de especialista.</li>
     </ul>
 
     <div class="doc-callout">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 4.3 2.6 17.7A2.2 2.2 0 0 0 4.5 21h15a2.2 2.2 0 0 0 1.9-3.3L13.7 4.3a2 2 0 0 0-3.4 0Z"/></svg>
-      <span><strong>Estado “pendente”.</strong> Quando falta um dado essencial para decidir (por ex. a faixa do ERCV para um diabético controlado), o sistema devolve <code>Calcular ERCV</code> em vez de chutar um risco. Ausência de dado nunca vira falso “risco baixo”.</span>
+      <span>Se aparecer <strong>“Calcular ERCV”</strong> ou <strong>“Calcular Prevent”</strong> no lugar da cor, o sistema está avisando que <strong>falta um dado</strong> para fechar a conta com segurança. Ele prefere pedir a informação a chutar um risco. Preencha o que falta (por exemplo, os exames ou a calculadora de risco do coração) e a classificação aparece.</span>
     </div>
   </section>
 
   <hr class="doc-divider">
 
-  <!-- ============================ 01 CARDIOVASCULAR ============================ -->
-  <section class="doc-section" id="cardiovascular">
-    <div class="doc-section-head"><span class="num">01</span><h2>Risco cardiovascular — Escore de Risco Global (ERG)</h2></div>
+  <!-- ============================ 02 HISTÓRICO ============================ -->
+  <section class="doc-section" id="historico">
+    <div class="doc-section-head"><span class="num">02</span><h2>Acompanhar a evolução do paciente</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
     <p class="doc-objetivo">
-      Estima a probabilidade de um evento cardiovascular (coronário, cerebrovascular, DAP, IC) em
-      <strong>10 anos</strong>. É o mesmo escore em pontos da calculadora estadual e alimenta a
-      <em>faixa do ERCV</em> usada na estratificação do diabético.
+      O sistema guarda uma <strong>linha do tempo</strong> do risco de cada paciente. Toda vez que
+      você salva um paciente e a classificação muda, fica registrado — para você enxergar se ele
+      está melhorando ou piorando ao longo do tempo.
     </p>
-    <div class="doc-meta">
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Fonte: <a href="{{ url_for('static', filename=pdf ~ 'risco-cardiovascular.pdf') }}" download>NT Risco Cardiovascular</a> (Tabelas 1 e 2)</span>
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4"/></svg> <code>domain.calcular_erg()</code> · <code>faixa_erg()</code></span>
-    </div>
 
-    <p class="doc-h3">Como funciona</p>
+    <p class="doc-h3">Como ver</p>
     <p>
-      Cada fator de risco recebe <strong>pontos por faixa</strong>. Soma-se tudo; o total é mapeado
-      para uma estimativa de risco em 10 anos. A pontuação é <strong>sexo-específica</strong> — homens
-      e mulheres têm tabelas distintas. O código percorre <em>brackets</em> <code>(limite, pontos)</code>
-      e devolve os pontos do primeiro limite que o valor não ultrapassa.
+      Na lista de pacientes (Crônicos, Gestantes ou Idosos), cada linha tem um
+      <strong>ícone de relógio</strong> <span style="white-space:nowrap;">(<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>)</span>.
+      Clique nele para abrir o histórico daquele paciente.
     </p>
 
-    <p class="doc-h3">Pontos por idade</p>
-    <div class="doc-table-wrap"><table class="doc-table">
-      <thead><tr><th>Idade (anos)</th><th>Homens</th><th>Mulheres</th></tr></thead>
-      <tbody>
-        <tr><td>≤ 34</td><td class="pts">0</td><td class="pts">0</td></tr>
-        <tr><td>35–39</td><td class="pts">2</td><td class="pts">2</td></tr>
-        <tr><td>40–44</td><td class="pts">5</td><td class="pts">4</td></tr>
-        <tr><td>45–49</td><td class="pts">6</td><td class="pts">5</td></tr>
-        <tr><td>50–54</td><td class="pts">8</td><td class="pts">7</td></tr>
-        <tr><td>55–59</td><td class="pts">10</td><td class="pts">8</td></tr>
-        <tr><td>60–64</td><td class="pts">11</td><td class="pts">9</td></tr>
-        <tr><td>65–69</td><td class="pts">12</td><td class="pts">10</td></tr>
-        <tr><td>70–74</td><td class="pts">14</td><td class="pts">11</td></tr>
-        <tr><td>≥ 75</td><td class="pts">15</td><td class="pts">12</td></tr>
-      </tbody>
-    </table></div>
-
-    <p class="doc-h3">Colesterol total, HDL e pressão sistólica</p>
-    <div class="doc-table-wrap"><table class="doc-table">
-      <thead><tr><th>Fator</th><th>Faixa</th><th>Homens</th><th>Mulheres</th></tr></thead>
-      <tbody>
-        <tr><td>Colesterol total (mg/dL)</td><td>≤159 / 160–199 / 200–239 / 240–279 / ≥280</td><td class="pts">0 / 1 / 2 / 3 / 4</td><td class="pts">0 / 1 / 3 / 4 / 5</td></tr>
-        <tr><td>HDL (mg/dL)</td><td>&lt;35 / 35–44 / 45–49 / 50–59 / ≥60</td><td class="pts">2 / 1 / 0 / −1 / −2</td><td class="pts">2 / 1 / 0 / −1 / −2</td></tr>
-        <tr><td>PAS <em>não tratada</em> (mmHg)</td><td>≤119 / 120–129 / 130–139 / 140–159 / ≥160</td><td class="pts">−2 / 0 / 1 / 2 / 3</td><td class="pts">−3 / 0 / 1 / (2/4)* / 5</td></tr>
-        <tr><td>PAS <em>tratada</em> (mmHg)</td><td>≤119 / 120–129 / 130–139 / 140–159 / ≥160</td><td class="pts">0 / 2 / 3 / 4 / 5</td><td class="pts">−1 / 2 / 3 / (5/6)* / 7</td></tr>
-        <tr><td>Fumante</td><td>sim</td><td class="pts">+4</td><td class="pts">+3</td></tr>
-        <tr><td>Diabetes</td><td>sim</td><td class="pts">+3</td><td class="pts">+4</td></tr>
-      </tbody>
-    </table></div>
-    <p style="font-size:0.8rem; color:var(--ink-faint);">* Nas mulheres a PAS tem uma faixa extra (140–149 e 150–159 com pontos distintos), conforme a tabela oficial.</p>
-
-    <p class="doc-h3">Do total de pontos ao risco em 10 anos</p>
-    <div class="doc-table-wrap"><table class="doc-table">
-      <thead><tr><th>Pontos</th><th>Risco — Homens</th><th>Risco — Mulheres</th></tr></thead>
-      <tbody>
-        <tr><td>≤ −2</td><td class="pts">0,9–1,1%</td><td class="pts">0,9–1,0%</td></tr>
-        <tr><td>0</td><td class="pts">1,6%</td><td class="pts">1,2%</td></tr>
-        <tr><td>5</td><td class="pts">3,9%</td><td class="pts">2,8%</td></tr>
-        <tr><td>8</td><td class="pts">6,7%</td><td class="pts">4,5%</td></tr>
-        <tr><td>11</td><td class="pts">11,2%</td><td class="pts">7,3%</td></tr>
-        <tr><td>13</td><td class="pts">15,6%</td><td class="pts">10,0%</td></tr>
-        <tr><td>16</td><td class="pts">25,3%</td><td class="pts">15,9%</td></tr>
-        <tr><td>≥ 18 (H) / ≥ 21 (M)</td><td class="pts">≥ 30%</td><td class="pts">≥ 30%</td></tr>
-      </tbody>
-    </table></div>
-
-    <p class="doc-h3">Faixas do ERCV (cortes sexo-específicos)</p>
+    <p class="doc-h3">O que cada marca significa</p>
     <ul>
-      <li><strong>Baixo</strong> — &lt; 5%</li>
-      <li><strong>Intermediário</strong> — 5% a &lt; 20% (homens) · 5% a &lt; 10% (mulheres)</li>
-      <li><strong>Alto</strong> — ≥ 20% (homens) · ≥ 10% (mulheres)</li>
+      <li><strong>Seta verde para baixo — “Risco reduzido”.</strong> O paciente melhorou de classificação. É o resultado que buscamos.</li>
+      <li><strong>Seta vermelha para cima — “Risco aumentou”.</strong> A situação piorou; vale reforçar o cuidado.</li>
+      <li><strong>Estrela — “Primeira avaliação”.</strong> O ponto de partida, quando o paciente foi cadastrado.</li>
+      <li><strong>Traço — “Atualização”.</strong> Houve uma mudança de rótulo sem piora ou melhora de nível (por exemplo, quando um dado que faltava foi finalmente preenchido).</li>
+    </ul>
+    <p>
+      Cada registro mostra a data, quem fez a alteração e a informação de apoio do momento (como o
+      percentual de risco do coração ou a pontuação da pessoa idosa). Assim fica fácil contar a
+      história do cuidado e comemorar quando o risco cai.
+    </p>
+  </section>
+
+  <hr class="doc-divider">
+
+  <!-- ============================ 03 CARDIOVASCULAR ============================ -->
+  <section class="doc-section" id="cardiovascular">
+    <div class="doc-section-head"><span class="num">03</span><h2>Risco do coração (risco cardiovascular)</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
+    <p class="doc-objetivo">
+      Estima a chance de o paciente ter um problema sério do coração ou circulação (infarto, AVC e
+      outros) nos <strong>próximos 10 anos</strong>. Serve para decidir o quanto intensificar o cuidado.
+    </p>
+    <div class="doc-meta">
+      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Baseado na <a href="{{ url_for('static', filename=pdf ~ 'risco-cardiovascular.pdf') }}" download>Nota Técnica de Risco Cardiovascular</a></span>
+    </div>
+
+    <p class="doc-h3">O que você informa</p>
+    <p>Idade, sexo, colesterol total, colesterol HDL (o “bom”), pressão, se toma remédio para pressão, se é fumante e se tem diabetes.</p>
+
+    <p class="doc-h3">Como o resultado é definido</p>
+    <p>
+      Cada informação vale uma quantidade de pontos. O sistema soma tudo e converte a soma em um
+      percentual de risco. Idade mais alta, colesterol alto, HDL baixo, pressão alta, fumo e diabetes
+      aumentam a pontuação; um HDL alto reduz. As tabelas de pontos são diferentes para homens e mulheres.
+    </p>
+
+    <p class="doc-h3">Faixas de risco</p>
+    <ul>
+      <li><strong>Baixo</strong> — menos de 5%.</li>
+      <li><strong>Intermediário</strong> — de 5% a 20% nos homens; de 5% a 10% nas mulheres.</li>
+      <li><strong>Alto</strong> — 20% ou mais nos homens; 10% ou mais nas mulheres.</li>
     </ul>
 
     <div class="doc-example">
-      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo resolvido</div>
-<pre><span class="c"># Homem, 55 anos · CT 200 · HDL 45 · PAS 130 (sem anti-hipertensivo) · não fumante · sem DM</span>
-idade 55 ....... <span class="k">10</span> pts        CT 200 ......... <span class="k">2</span> pts
-HDL 45 .........  <span class="k">0</span> pts        PAS 130 (n/tr)   <span class="k">1</span> pt
-                                    ─────────────────
-                                    total = <span class="r">13 pontos</span>
-<span class="k">calcular_erg("M", 55, 200, 45, 130, tratado=False, fumante=False, diabetes=False)</span>
-  → <span class="r">0.156  →  15,6%</span>   ·   faixa_erg → <span class="r">"intermediário"</span>
+      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo prático</div>
+<pre>Homem, 55 anos, colesterol total 200, HDL 45, pressão 130
+(sem remédio para pressão), não fumante, sem diabetes.
+   → soma <span class="k">13 pontos</span> → risco de <span class="r">15,6% em 10 anos</span> → faixa <span class="r">intermediária</span>.
 
-<span class="c"># O mesmo paciente, agora com diabetes: +3 pontos → 16 pontos</span>
-  → <span class="r">0.253  →  25,3%</span>   ·   faixa_erg → <span class="r">"alto"</span> (≥ 20% em homens)</pre>
+O mesmo paciente, agora com diabetes:
+   → sobe para <span class="r">25,3%</span> → faixa <span class="r">alta</span>.</pre>
     </div>
   </section>
 
   <hr class="doc-divider">
 
-  <!-- ============================ 02 FINDRISC ============================ -->
+  <!-- ============================ 04 FINDRISC ============================ -->
   <section class="doc-section" id="findrisc">
-    <div class="doc-section-head"><span class="num">02</span><h2>FINDRISC — risco de desenvolver diabetes tipo 2</h2></div>
+    <div class="doc-section-head"><span class="num">04</span><h2>Risco de desenvolver diabetes (FINDRISC)</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
     <p class="doc-objetivo">
-      Instrumento finlandês validado que estima a chance de <strong>desenvolver DM2 em 10 anos</strong>
-      a partir de fatores simples, sem exame de sangue obrigatório. É uma calculadora avulsa
-      (não persiste no prontuário) — ideal para rastreio.
+      Um questionário simples que estima a chance de a pessoa <strong>desenvolver diabetes nos
+      próximos 10 anos</strong>. Não precisa de exame de sangue — é ótimo para rastreamento na
+      comunidade. Fica no menu <strong>FINDRISC</strong> e não altera o cadastro do paciente.
     </p>
     <div class="doc-meta">
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Fonte: <a href="{{ url_for('static', filename=pdf ~ 'findrisc.pdf') }}" download>NT FINDRISC</a> (SES-GO)</span>
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4"/></svg> <code>domain.calcular_findrisc()</code> · <code>faixa_findrisc()</code></span>
+      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Baseado na <a href="{{ url_for('static', filename=pdf ~ 'findrisc.pdf') }}" download>Nota Técnica do FINDRISC</a></span>
     </div>
 
-    <p class="doc-h3">Os 8 itens e seus pontos</p>
-    <div class="doc-table-wrap"><table class="doc-table">
-      <thead><tr><th>Item</th><th>Critério → pontos</th></tr></thead>
-      <tbody>
-        <tr><td>1. Idade</td><td style="text-align:left">&lt;45 → 0 · 45–54 → 2 · 55–64 → 3 · &gt;64 → 4</td></tr>
-        <tr><td>2. IMC</td><td style="text-align:left">&lt;25 → 0 · 25–30 → 1 · &gt;30 → 3</td></tr>
-        <tr><td>3. Cintura (homens)</td><td style="text-align:left">&lt;94 → 0 · 94–102 → 3 · &gt;102 → 4</td></tr>
-        <tr><td>3. Cintura (mulheres)</td><td style="text-align:left">&lt;80 → 0 · 80–88 → 3 · &gt;88 → 4</td></tr>
-        <tr><td>4. Atividade física &lt; 30 min/dia</td><td style="text-align:left">sim → 2</td></tr>
-        <tr><td>5. Não come frutas/vegetais diariamente</td><td style="text-align:left">sim → 1</td></tr>
-        <tr><td>6. Já usou medicamento para pressão</td><td style="text-align:left">sim → 2</td></tr>
-        <tr><td>7. Já teve glicemia alta detectada</td><td style="text-align:left">sim → 5</td></tr>
-        <tr><td>8. Familiar com diabetes</td><td style="text-align:left">2º grau (avós/tios/primos) → 3 · 1º grau (pais/irmãos/filhos) → 5</td></tr>
-      </tbody>
-    </table></div>
+    <p class="doc-h3">As 8 perguntas</p>
+    <p>Idade; peso e altura (para o IMC); medida da cintura; se faz atividade física; se come frutas e verduras todos os dias; se já usou remédio para pressão; se já teve açúcar alto no sangue alguma vez; e se tem familiar com diabetes.</p>
 
-    <p class="doc-h3">Faixas de risco (0–26 pontos)</p>
+    <p class="doc-h3">O que o resultado indica</p>
     <ul>
-      <li><strong>Baixo</strong> — &lt; 7 (≈ 1 em 100)</li>
-      <li><strong>Levemente elevado</strong> — 7 a 11 (≈ 1 em 25)</li>
-      <li><strong>Moderado</strong> — 12 a 14 (≈ 1 em 6)</li>
-      <li><strong>Alto</strong> — 15 a 20 (≈ 1 em 3)</li>
-      <li><strong>Muito alto</strong> — &gt; 20 (≈ 1 em 2)</li>
+      <li><strong>Baixo</strong> — cerca de 1 em 100 desenvolve diabetes em 10 anos.</li>
+      <li><strong>Levemente elevado</strong> — cerca de 1 em 25.</li>
+      <li><strong>Moderado</strong> — cerca de 1 em 6.</li>
+      <li><strong>Alto</strong> — cerca de 1 em 3.</li>
+      <li><strong>Muito alto</strong> — cerca de 1 em 2.</li>
     </ul>
 
     <div class="doc-example">
-      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo resolvido</div>
-<pre><span class="c"># Homem, 50 anos · IMC 31 · cintura 100 cm · sedentário · dieta pobre em vegetais</span>
-<span class="c"># já usou anti-hipertensivo · nunca teve glicemia alta · pai com diabetes (1º grau)</span>
-idade 50 .... <span class="k">2</span>   IMC 31 ...... <span class="k">3</span>   cintura 100 . <span class="k">3</span>   sedentário .. <span class="k">2</span>
-dieta ....... <span class="k">1</span>   anti-HAS .... <span class="k">2</span>   glicemia .... <span class="k">0</span>   1º grau ..... <span class="k">5</span>
-                                              ────────────────
-                                              total = <span class="r">18 pontos</span>
-<span class="k">faixa_findrisc(18)</span> → <span class="r">"alto"</span>   (risco ≈ 1 em 3 de desenvolver DM2 em 10 anos)</pre>
+      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo prático</div>
+<pre>Homem de 50 anos, com sobrepeso, cintura de 100 cm, sedentário,
+que come poucas frutas e verduras, já usou remédio de pressão e
+tem o pai com diabetes.
+   → resultado <span class="r">alto</span>: cerca de 1 chance em 3 de desenvolver diabetes em 10 anos.</pre>
     </div>
   </section>
 
   <hr class="doc-divider">
 
-  <!-- ============================ 03 DIABETES ============================ -->
+  <!-- ============================ 05 DIABETES ============================ -->
   <section class="doc-section" id="diabetes">
-    <div class="doc-section-head"><span class="num">03</span><h2>Estratificação do diabetes — cascata de risco</h2></div>
+    <div class="doc-section-head"><span class="num">05</span><h2>Estratificação de quem já tem diabetes</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
     <p class="doc-objetivo">
-      Para quem <em>já tem</em> DM ou pré-diabetes, o risco não é um escore e sim uma
-      <strong>cascata de decisão</strong>: avalia-se do critério mais grave ao mais leve, e o
-      primeiro que se aplica define o estrato. Prioridade máxima do pipeline crônico.
+      Para quem já tem diabetes (ou pré-diabetes), o sistema avalia os critérios <strong>do mais grave
+      para o mais leve</strong> e para no primeiro que se aplica. Assim, a situação mais séria sempre
+      define a classificação.
     </p>
     <div class="doc-meta">
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Fonte: <a href="{{ url_for('static', filename=pdf ~ 'diabetes.pdf') }}" download>Res. CIB 1193/2025</a> (Quadro 9)</span>
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4"/></svg> <code>domain.classificar_dm()</code></span>
+      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Baseado na <a href="{{ url_for('static', filename=pdf ~ 'diabetes.pdf') }}" download>Nota Técnica de Diabetes</a> (Res. 1193/2025)</span>
     </div>
 
-    <p class="doc-h3">A cascata (avaliada de cima para baixo)</p>
+    <p class="doc-h3">A ordem de avaliação</p>
     <ol class="doc-flow">
-      <li><strong>Muito alto</strong> — internação aguda nos últimos 12 meses, <em>ou</em> doença aterosclerótica, <em>ou</em> DM1 com HbA1c &gt; 7,5%.</li>
-      <li><strong>Alto (DM1)</strong> — todo DM1 sem descontrole grave é, no mínimo, alto risco. Nunca cai para médio/baixo.</li>
-      <li><strong>Alto (DM2)</strong> — HbA1c &gt; 7,5%, <em>ou</em> pressão fora de meta, <em>ou</em> complicação crônica, <em>ou</em> ERCV na faixa alta.</li>
-      <li><strong>Calcular ERCV</strong> — DM2 aparentemente controlado, mas sem HbA1c ou sem a faixa do ERCV: não dá para descartar risco alto → sistema pede o dado antes de classificar.</li>
-      <li><strong>Médio</strong> — DM2 controlado com todos os dados presentes e ERCV não-alto.</li>
+      <li><strong>Muito alto</strong> — teve internação por causa aguda no último ano, ou tem doença já instalada nas artérias, ou é diabetes tipo 1 com açúcar muito descontrolado.</li>
+      <li><strong>Alto (tipo 1)</strong> — todo diabético tipo 1, mesmo sem descontrole grave, é pelo menos alto risco.</li>
+      <li><strong>Alto (tipo 2)</strong> — açúcar acima da meta, ou pressão fora da meta, ou já com complicação crônica, ou risco do coração na faixa alta.</li>
+      <li><strong>Falta calcular o risco do coração</strong> — diabético tipo 2 que parece controlado, mas ainda sem o exame ou o cálculo do coração. O sistema pede esse dado antes de concluir.</li>
+      <li><strong>Médio</strong> — diabético tipo 2 controlado, com todos os dados, e risco do coração fora da faixa alta.</li>
     </ol>
     <p>
-      Para <strong>pré-diabetes</strong>: autocuidado insuficiente → médio; caso contrário, o estrato
-      segue a faixa do ERCV (baixo se ERCV baixo, senão médio; sem ERCV → <code>Calcular ERCV</code>).
-      Quem não tem DM nem pré-diabetes “cai” para a estratificação da hipertensão (seção 04).
+      Para <strong>pré-diabetes</strong>, o cuidado com o autocuidado e o risco do coração definem se
+      fica em risco baixo ou médio. Quem não tem diabetes nem pré-diabetes segue para a avaliação da
+      pressão (a seguir).
     </p>
 
     <div class="doc-example">
-      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplos resolvidos</div>
-<pre><span class="c"># DM2, HbA1c 8,2% (descontrole) ─────────────────────────</span>
-  não bate “muito alto”; é DM2 com HbA1c &gt; 7,5%  → <span class="r">Risco Alto</span>
+      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplos práticos</div>
+<pre>Diabético tipo 2 com o açúcar (HbA1c) bem acima da meta
+   → <span class="r">Risco Alto</span>.
 
-<span class="c"># DM2 controlado, HbA1c 6,8%, pressão em meta, ERCV = "baixo" </span>
-  passa a cascata inteira sem gatilho de alto     → <span class="r">Risco Médio</span>
-
-<span class="c"># DM2 controlado, HbA1c 6,8%, porém ERCV ainda não calculado</span>
-  falta a faixa do ERCV para descartar alto       → <span class="r">"Calcular ERCV"</span></pre>
+O mesmo paciente, depois de controlar o açúcar e a pressão,
+com o risco do coração baixo
+   → cai para <span class="r">Risco Médio</span> (e o histórico registra a melhora).</pre>
     </div>
   </section>
 
   <hr class="doc-divider">
 
-  <!-- ============================ 04 HIPERTENSÃO ============================ -->
+  <!-- ============================ 06 HIPERTENSÃO ============================ -->
   <section class="doc-section" id="hipertensao">
-    <div class="doc-section-head"><span class="num">04</span><h2>Estratificação da hipertensão — matriz</h2></div>
+    <div class="doc-section-head"><span class="num">06</span><h2>Estratificação de quem tem pressão alta</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
     <p class="doc-objetivo">
-      Para o hipertenso <em>sem</em> diabetes, o risco cruza o <strong>estágio da pressão</strong> com o
-      <strong>número de fatores de risco cardiovascular</strong> numa matriz. Lesão de órgão-alvo,
-      doença cardiovascular estabelecida ou DRC atalham direto para o alto risco.
+      Para o hipertenso sem diabetes, o risco combina <strong>o quanto a pressão está alta</strong> com
+      <strong>quantos fatores de risco</strong> o paciente acumula. Situações mais graves (lesão em
+      órgãos, doença do coração já instalada ou doença renal) já classificam direto como alto.
     </p>
     <div class="doc-meta">
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Fonte: <a href="{{ url_for('static', filename=pdf ~ 'hipertensao.pdf') }}" download>NT 11/2021</a> (Quadros 1, 3 e 4)</span>
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4"/></svg> <code>domain.classificar_has()</code></span>
+      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Baseado na <a href="{{ url_for('static', filename=pdf ~ 'hipertensao.pdf') }}" download>Nota Técnica de Hipertensão</a></span>
     </div>
 
-    <p class="doc-h3">Estágio da PA (pela maior medida)</p>
+    <p class="doc-h3">Os estágios da pressão</p>
     <div class="doc-table-wrap"><table class="doc-table">
-      <thead><tr><th>Nível</th><th>Sistólica (mmHg)</th><th>Diastólica (mmHg)</th></tr></thead>
+      <thead><tr><th>Nível</th><th>Máxima (sistólica)</th><th>Mínima (diastólica)</th></tr></thead>
       <tbody>
-        <tr><td>Pré-hipertensão</td><td>130–139</td><td>85–89</td></tr>
-        <tr><td>Estágio 1</td><td>140–159</td><td>90–99</td></tr>
-        <tr><td>Estágio 2</td><td>160–179</td><td>100–109</td></tr>
-        <tr><td>Estágio 3</td><td>≥ 180</td><td>≥ 110</td></tr>
+        <tr><td>Pré-hipertensão</td><td>130 a 139</td><td>85 a 89</td></tr>
+        <tr><td>Estágio 1</td><td>140 a 159</td><td>90 a 99</td></tr>
+        <tr><td>Estágio 2</td><td>160 a 179</td><td>100 a 109</td></tr>
+        <tr><td>Estágio 3</td><td>180 ou mais</td><td>110 ou mais</td></tr>
       </tbody>
     </table></div>
 
-    <p class="doc-h3">Fatores de risco contados</p>
-    <p>Sexo masculino; idade &gt; 55 (homem) ou &gt; 65 (mulher); tabagismo; história familiar de DCV precoce; dislipidemia; obesidade; diabetes. (Se houver diabetes, porém, o paciente já teria sido classificado pela cascata do DM.)</p>
+    <p class="doc-h3">Os fatores de risco que contam</p>
+    <p>Ser homem; idade acima de 55 anos (homem) ou 65 (mulher); ser fumante; ter caso de doença do coração na família cedo; colesterol alterado; obesidade.</p>
 
-    <p class="doc-h3">A matriz estágio × fatores</p>
+    <p class="doc-h3">Como se cruza tudo</p>
     <div class="doc-table-wrap"><table class="doc-table">
-      <thead><tr><th>Estágio</th><th>0 fatores</th><th>1–2 fatores</th><th>≥ 3 / LOA / DCV / DRC</th></tr></thead>
+      <thead><tr><th>Pressão</th><th>Nenhum fator</th><th>1 a 2 fatores</th><th>3+ / lesão / doença grave</th></tr></thead>
       <tbody>
         <tr><td>Pré-hipertensão</td><td>Sem risco adicional</td><td>Baixo</td><td>Moderado</td></tr>
         <tr><td>Estágio 1</td><td>Baixo</td><td>Moderado</td><td>Alto</td></tr>
@@ -327,103 +245,126 @@ dieta ....... <span class="k">1</span>   anti-HAS .... <span class="k">2</span> 
     </table></div>
 
     <div class="doc-example">
-      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo resolvido</div>
-<pre><span class="c"># Homem, 60 anos · PA 150/95 · sem LOA/DCV/DRC/DM</span>
-PA 150/95 → <span class="k">estágio 1</span>
-fatores: masculino (1) + homem &gt; 55 (1) = <span class="k">2 fatores</span>  → coluna “1–2”
-matriz[estágio 1][1–2 fatores]                  → <span class="r">Risco Moderado</span></pre>
+      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo prático</div>
+<pre>Homem de 60 anos, pressão 150/95, sem lesão de órgão nem doença grave.
+   Pressão 150/95 = estágio 1.
+   Fatores: é homem (1) e tem mais de 55 anos (1) = 2 fatores.
+   → <span class="r">Risco Moderado</span>.</pre>
     </div>
   </section>
 
   <hr class="doc-divider">
 
-  <!-- ============================ 05 IDOSO ============================ -->
+  <!-- ============================ 07 IDOSO ============================ -->
   <section class="doc-section" id="idoso">
-    <div class="doc-section-head"><span class="num">05</span><h2>Vulnerabilidade do idoso — IVCF-20</h2></div>
+    <div class="doc-section-head"><span class="num">07</span><h2>Vulnerabilidade da pessoa idosa (IVCF-20)</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
     <p class="doc-objetivo">
-      O <strong>Índice de Vulnerabilidade Clínico-Funcional (IVCF-20)</strong> rastreia fragilidade na
-      pessoa idosa por 20 questões em 8 dimensões (idade, autopercepção, AVD, cognição, humor,
-      mobilidade, comunicação e comorbidades). Pontuação de <strong>0 a 40</strong>.
+      Um questionário de 20 perguntas que avalia a <strong>fragilidade</strong> da pessoa idosa em
+      várias áreas da vida — idade, como ela enxerga a própria saúde, as atividades do dia a dia,
+      memória, humor, mobilidade, visão, audição e doenças. Quanto maior a pontuação, maior a fragilidade.
     </p>
     <div class="doc-meta">
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Fonte: Nota Técnica de Saúde da Pessoa Idosa (SES-GO)</span>
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4"/></svg> <code>domain.calcular_ivcf20()</code> · <code>estrato_idoso_por_ivcf()</code></span>
+      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Baseado na Nota Técnica de Saúde da Pessoa Idosa</span>
     </div>
 
-    <p class="doc-h3">Pesos por dimensão</p>
-    <div class="doc-table-wrap"><table class="doc-table">
-      <thead><tr><th>Dimensão</th><th>Regra → pontos</th></tr></thead>
-      <tbody>
-        <tr><td>Idade</td><td style="text-align:left">75–84 → 1 · ≥ 85 → 3</td></tr>
-        <tr><td>Autopercepção de saúde ruim</td><td style="text-align:left">1</td></tr>
-        <tr><td>AVD instrumental (compras, dinheiro, tarefas)</td><td style="text-align:left">qualquer uma → <strong>4</strong> (teto — não soma entre si)</td></tr>
-        <tr><td>AVD básica (ajuda no banho)</td><td style="text-align:left">6</td></tr>
-        <tr><td>Cognição (esquece / piora / atrapalha)</td><td style="text-align:left">1 + 1 + 2</td></tr>
-        <tr><td>Humor (desânimo / perda de interesse)</td><td style="text-align:left">2 + 2</td></tr>
-        <tr><td>Mobilidade (alcançar, pegar, marcha, quedas)</td><td style="text-align:left">1 + 1 + 2 (aeróbica) + 2 + 2</td></tr>
-        <tr><td>Continência</td><td style="text-align:left">2</td></tr>
-        <tr><td>Comunicação (visão / audição)</td><td style="text-align:left">2 + 2</td></tr>
-        <tr><td>Comorbidades múltiplas</td><td style="text-align:left">4</td></tr>
-      </tbody>
-    </table></div>
+    <p class="doc-h3">O que é avaliado</p>
+    <p>
+      A idade, se a pessoa considera a própria saúde ruim, se consegue cuidar das tarefas do dia
+      (compras, dinheiro, casa), se toma banho sozinha, memória, ânimo e interesse, força e equilíbrio,
+      quedas, controle da urina, visão, audição e presença de várias doenças ao mesmo tempo. Cada item
+      soma pontos, até um total de 40.
+    </p>
 
-    <p class="doc-h3">Estratos</p>
+    <p class="doc-h3">Os três grupos</p>
     <ul>
-      <li><strong>0–6</strong> — Idoso robusto (baixo risco de vulnerabilidade)</li>
-      <li><strong>7–14</strong> — Em risco de fragilização (moderado)</li>
-      <li><strong>≥ 15</strong> — Idoso frágil (alto risco)</li>
+      <li><strong>0 a 6 pontos — pessoa idosa robusta.</strong> Baixo risco; acompanhamento de rotina.</li>
+      <li><strong>7 a 14 pontos — em risco de fragilização.</strong> Atenção redobrada e reavaliações.</li>
+      <li><strong>15 pontos ou mais — pessoa idosa frágil.</strong> Alto risco; cuidado mais próximo e coordenado.</li>
     </ul>
 
     <div class="doc-example">
-      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo resolvido</div>
-<pre><span class="c"># 86 anos · autopercepção ruim · não faz compras sozinho · precisa de ajuda no banho</span>
-<span class="c"># incontinência urinária · múltiplas comorbidades</span>
-idade 86 .......... <span class="k">3</span>     autopercepção ..... <span class="k">1</span>
-AVD instrumental .. <span class="k">4</span>     banho ............. <span class="k">6</span>
-incontinência ..... <span class="k">2</span>     comorbidades ...... <span class="k">4</span>
-                                    ─────────────────
-                                    total = <span class="r">20 pontos</span>
-<span class="k">estrato_idoso_por_ivcf(20)</span> → <span class="r">"Idoso frágil"</span>  (≥ 15 → alto risco)</pre>
+      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo prático</div>
+<pre>Pessoa de 86 anos, que considera a saúde ruim, não faz as compras
+sozinha, precisa de ajuda no banho, tem perda de urina e várias doenças.
+   → soma <span class="r">20 pontos</span> → <span class="r">pessoa idosa frágil</span> (alto risco).</pre>
     </div>
   </section>
 
   <hr class="doc-divider">
 
-  <!-- ============================ 06 GESTANTE ============================ -->
+  <!-- ============================ 08 GESTANTE ============================ -->
   <section class="doc-section" id="gestante">
-    <div class="doc-section-head"><span class="num">06</span><h2>Estratificação da gestante</h2></div>
+    <div class="doc-section-head"><span class="num">08</span><h2>Estratificação das gestantes</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
     <p class="doc-objetivo">
       Classifica o pré-natal em <strong>habitual</strong>, <strong>intermediário</strong> ou
-      <strong>alto risco</strong> combinando idade, IMC pré-gestacional e critérios clínicos marcados
-      pelo profissional. O sistema também calcula idade gestacional e DPP.
+      <strong>alto risco</strong>, olhando a idade, o peso (IMC) e os critérios clínicos marcados pela
+      equipe. O sistema ainda calcula a idade gestacional e a data provável do parto.
     </p>
     <div class="doc-meta">
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Fonte: NT 6/2024 SES-GO (Quadro 2)</span>
-      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4"/></svg> <code>domain.recalculate_gestante()</code></span>
+      <span class="doc-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Baseado na Nota Técnica de Pré-Natal (SES-GO)</span>
     </div>
 
-    <p class="doc-h3">Regra (avaliada de cima para baixo)</p>
+    <p class="doc-h3">Como é definido</p>
     <ol class="doc-flow">
-      <li><strong>Alto risco</strong> — obesidade grave (IMC ≥ 40), <em>ou</em> HAS/DM em descontrole, <em>ou</em> qualquer critério clínico de alto risco marcado.</li>
-      <li><strong>Intermediário</strong> — idade &lt; 15 ou &gt; 40 anos; <em>ou</em> baixo peso (IMC &lt; 18,5) ou obesidade sem comorbidade (IMC 30–39,9); <em>ou</em> critério intermediário marcado.</li>
-      <li><strong>Habitual</strong> — 15 a 40 anos, IMC 18,5–29,9, sem nenhum dos fatores acima.</li>
+      <li><strong>Alto risco</strong> — obesidade grave, ou pressão/diabetes descontrolados, ou qualquer critério clínico de alto risco marcado pela equipe.</li>
+      <li><strong>Intermediário</strong> — idade abaixo de 15 ou acima de 40 anos; baixo peso ou obesidade sem outra complicação; ou um critério intermediário marcado.</li>
+      <li><strong>Habitual</strong> — entre 15 e 40 anos, peso dentro da faixa saudável e sem os fatores acima.</li>
     </ol>
 
     <div class="doc-example">
-      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplos resolvidos</div>
-<pre><span class="c"># Gestante 38 anos · IMC 32 · sem comorbidade descontrolada</span>
-idade ≤ 40 (não dispara) · IMC 32 ∈ [30, 40) → obesidade sem comorbidade
-                                             → <span class="r">RISCO INTERMEDIÁRIO</span>
+      <div class="doc-example-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Exemplo prático</div>
+<pre>Gestante de 38 anos, com obesidade, mas sem outra doença descontrolada.
+   → <span class="r">Risco Intermediário</span>.
 
-<span class="c"># Gestante 27 anos · IMC 41</span>
-IMC ≥ 40 → obesidade grave                   → <span class="r">ALTO RISCO</span></pre>
+Gestante com obesidade grave.
+   → <span class="r">Alto Risco</span>.</pre>
+    </div>
+  </section>
+
+  <hr class="doc-divider">
+
+  <!-- ============================ 09 DOWNLOADS ============================ -->
+  <section class="doc-section" id="downloads">
+    <div class="doc-section-head"><span class="num">09</span><h2>Documentos oficiais (para baixar)</h2><a class="doc-top-link" href="#manual-top">Voltar ao índice</a></div>
+    <p class="doc-objetivo">
+      As notas técnicas originais da Secretaria de Estado da Saúde de Goiás, guardadas dentro do
+      sistema. Em qualquer dúvida, o documento oficial é a referência final. Clique para baixar.
+    </p>
+    {% set svg_pdf %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>{% endset %}
+    <div class="doc-downloads">
+      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'risco-cardiovascular.pdf') }}" download>
+        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
+        <span class="doc-file-meta"><strong>Risco do coração</strong><small>Risco cardiovascular — SES-GO</small></span>
+      </a>
+      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'findrisc.pdf') }}" download>
+        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
+        <span class="doc-file-meta"><strong>Risco de diabetes</strong><small>Questionário FINDRISC</small></span>
+      </a>
+      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'diabetes.pdf') }}" download>
+        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
+        <span class="doc-file-meta"><strong>Diabetes</strong><small>Resolução 1193/2025</small></span>
+      </a>
+      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'hipertensao.pdf') }}" download>
+        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
+        <span class="doc-file-meta"><strong>Hipertensão</strong><small>Estratificação da pressão alta</small></span>
+      </a>
+      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'obesidade.pdf') }}" download>
+        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
+        <span class="doc-file-meta"><strong>Obesidade</strong><small>Resolução 1194/2025</small></span>
+      </a>
+      <a class="doc-file" href="{{ url_for('static', filename=pdf ~ 'autocuidado-diabetes.pdf') }}" download>
+        <span class="doc-file-ico">{{ svg_pdf|safe }}</span>
+        <span class="doc-file-meta"><strong>Escala de autocuidado</strong><small>Apoio ao cuidado do diabetes</small></span>
+      </a>
     </div>
   </section>
 
   <div class="doc-callout" style="margin-top:2.4rem;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>
-    <span>Toda a lógica desta página é <strong>apoio à decisão</strong> e reproduz instrumentos oficiais da SES-GO. Não substitui a avaliação clínica individual. Em caso de divergência, prevalece a nota técnica original — anexada acima para download.</span>
+    <span>Tudo o que este sistema calcula segue as notas técnicas oficiais da SES-GO e serve como <strong>apoio à decisão</strong>. Não substitui a avaliação de cada paciente pela equipe de saúde. Havendo qualquer divergência, vale o que diz o documento oficial — disponível para baixar acima.</span>
   </div>
+
+  <a class="doc-floating-top" href="#manual-top" aria-label="Voltar ao topo do manual">Topo</a>
 
 </div>
 {% endblock %}

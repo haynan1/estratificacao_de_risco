@@ -7,6 +7,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import (
     Flask,
+    abort,
     flash,
     redirect,
     render_template,
@@ -16,7 +17,7 @@ from flask import (
     url_for,
 )
 from sqlalchemy import event, inspect as sa_inspect, or_, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash
 
@@ -29,6 +30,7 @@ from domain import (
     calculate_age,
     calculate_imc,
     calculate_prevent,
+    comparar_risco,
     faixa_erg,
     faixa_findrisc,
     is_prevent_status,
@@ -42,6 +44,7 @@ from models import (
     Auditoria,
     AvaliacaoPrevent,
     Gestante,
+    HistoricoRisco,
     PacienteCronico,
     PacienteIdoso,
     Usuario,
@@ -237,6 +240,287 @@ def registrar_auditoria(acao, entidade, entidade_id=None, detalhe=""):
             detalhe=(detalhe or "")[:200],
         )
     )
+
+
+def registrar_historico_risco(tipo, paciente_id, risco_novo, risco_anterior, detalhe=""):
+    """Registra uma mudança de estratificação na linha do tempo do paciente.
+
+    Chamado APÓS o commit do paciente (quando o id já existe). Best-effort, em
+    transação própria: uma falha aqui jamais compromete o salvamento principal.
+    Só grava quando o risco realmente mudou.
+    """
+    if (risco_novo or "") == (risco_anterior or ""):
+        return
+    db.session.add(
+        HistoricoRisco(
+            tipo=tipo,
+            paciente_id=paciente_id,
+            risco=risco_novo or "—",
+            risco_anterior=risco_anterior,
+            tendencia=comparar_risco(risco_anterior, risco_novo),
+            detalhe=(detalhe or "")[:200],
+            autor=session.get("username"),
+        )
+    )
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        logging.getLogger("estratificacao").exception(
+            "Falha ao registrar histórico de risco (%s #%s)", tipo, paciente_id
+        )
+
+
+def detalhe_historico_cronico(paciente):
+    if paciente.ercv_percentual is not None:
+        return f"Risco cardiovascular em 10 anos: {paciente.ercv_percentual}%"
+    return ""
+
+
+def detalhe_historico_idoso(paciente):
+    if paciente.ivcf_pontos is not None:
+        return f"{paciente.ivcf_pontos} pontos no IVCF-20"
+    return ""
+
+
+def detalhe_historico_gestante(paciente):
+    partes = []
+    if paciente.imc:
+        partes.append(f"IMC {paciente.imc}")
+    if paciente.ig_atual_semanas:
+        partes.append(f"IG {paciente.ig_atual_semanas}")
+    return " · ".join(partes)
+
+
+# Mapa dos três módulos para a linha do tempo: modelo, campo do nome, campo do
+# risco atual e a rota de retorno da respectiva lista.
+HISTORICO_TIPOS = {
+    "cronico": (PacienteCronico, "nome_completo", "risco_estratificado", "lista_cronicos"),
+    "idoso": (PacienteIdoso, "nome_completo", "estrato_clinico_funcional", "lista_idosos"),
+    "gestante": (Gestante, "nome_paciente", "classificacao_risco", "lista_gestantes"),
+}
+
+
+def historico_valor(valor):
+    if isinstance(valor, bool):
+        return "Sim" if valor else "Não"
+    if isinstance(valor, datetime):
+        return valor.strftime("%d/%m/%Y às %H:%M")
+    if isinstance(valor, date):
+        return date_br(valor)
+    if valor is None or valor == "":
+        return "Não informado"
+    return valor
+
+
+def historico_campo(rotulo, valor, automatico=False):
+    return {
+        "rotulo": rotulo,
+        "valor": historico_valor(valor),
+        "vazio": valor is None or valor == "",
+        "automatico": automatico,
+    }
+
+
+def historico_secao(titulo, campos, descricao=""):
+    return {"titulo": titulo, "descricao": descricao, "campos": campos}
+
+
+def dados_historico_cronico(paciente):
+    secoes = [
+        historico_secao(
+            "Dados pessoais",
+            [
+                historico_campo("Nome completo", paciente.nome_completo),
+                historico_campo("CPF", format_cpf(paciente.cpf)),
+                historico_campo("ACS", paciente.acs),
+                historico_campo("Data de nascimento", paciente.data_nascimento),
+                historico_campo("Idade", paciente.idade, automatico=True),
+                historico_campo("Sexo", paciente.sexo),
+            ],
+        ),
+        historico_secao(
+            "Dados clínicos",
+            [
+                historico_campo("HAS", paciente.has),
+                historico_campo("DM2", paciente.dm2),
+                historico_campo("DM1", paciente.dm1),
+                historico_campo("Pré-diabetes", paciente.pre_diabetes),
+                historico_campo("Obesidade", paciente.obesidade),
+                historico_campo("Tabagismo", paciente.tabagismo),
+                historico_campo("Dislipidemia", paciente.dislipidemia),
+                historico_campo("DRC", paciente.drc),
+                historico_campo("LOA", paciente.loa),
+                historico_campo("Doença aterosclerótica", paciente.doenca_aterosclerotica),
+                historico_campo("Especialista", paciente.especialista),
+                historico_campo("eMulti", paciente.emulti),
+            ],
+        ),
+        historico_secao(
+            "Sinais vitais e exames",
+            [
+                historico_campo("Última PA", paciente.ultima_pa),
+                historico_campo("PAS", paciente.pas),
+                historico_campo("PAD", paciente.pad),
+                historico_campo("Data últ. PA", paciente.data_ult_pa),
+                historico_campo("Última HbA1c", paciente.ultima_hba1c),
+                historico_campo("Data últ. HbA1c", paciente.data_ult_hba1c),
+                historico_campo("Peso", paciente.peso),
+                historico_campo("Estatura", paciente.estatura),
+                historico_campo("Escore CV (%)", paciente.ercv_percentual, automatico=True),
+                historico_campo("Faixa ERCV", paciente.ercv_faixa),
+                historico_campo("Base ERCV", paciente.ercv_base, automatico=True),
+                historico_campo("Risco estratificado", paciente.risco_estratificado, automatico=True),
+            ],
+        ),
+    ]
+    if paciente.avaliacao_prevent:
+        prevent = paciente.avaliacao_prevent
+        secoes.append(
+            historico_secao(
+                "Avaliação PREVENT",
+                [
+                    historico_campo("Idade calc.", prevent.idade_cal_prevent, automatico=True),
+                    historico_campo("Data exames", prevent.data_exames),
+                    historico_campo("CT", prevent.ct),
+                    historico_campo("HDL", prevent.hdl),
+                    historico_campo("PAS", prevent.pas),
+                    historico_campo("TFG CKD-EPI", prevent.tfg_ckd_epi),
+                    historico_campo("Creatinina", prevent.cr),
+                    historico_campo("LDL", prevent.ldl),
+                    historico_campo("DM2", prevent.dm2),
+                    historico_campo("Fumante", prevent.fumante),
+                    historico_campo("Anti-hipertensivo", prevent.anti_hipertensivo),
+                    historico_campo("Uso de estatina", prevent.uso_estatina),
+                    historico_campo("log-Odds", prevent.log_odds, automatico=True),
+                    historico_campo(
+                        "Risco cardiovascular 10 anos",
+                        prevent.risco_cardiovascular_10_anos,
+                        automatico=True,
+                    ),
+                ],
+                "Dados salvos na etapa PREVENT deste paciente.",
+            )
+        )
+    return secoes
+
+
+def dados_historico_gestante(paciente):
+    return [
+        historico_secao(
+            "Dados pessoais",
+            [
+                historico_campo("Nome", paciente.nome_paciente),
+                historico_campo("CPF", format_cpf(paciente.cpf)),
+                historico_campo("ACS", paciente.acs),
+                historico_campo("Data de nascimento", paciente.data_nascimento),
+                historico_campo("Idade", paciente.idade, automatico=True),
+                historico_campo("Raça/cor", paciente.raca_cor),
+                historico_campo("Vulnerabilidade familiar", paciente.vulnerabilidade_familiar),
+            ],
+        ),
+        historico_secao(
+            "Pré-natal",
+            [
+                historico_campo("Última consulta", paciente.ultima_consulta),
+                historico_campo("DUM", paciente.dum),
+                historico_campo("1º USG", paciente.primeiro_usg),
+                historico_campo("IG 1º USG", paciente.ig_primeiro_usg),
+                historico_campo("IG semanas", paciente.ig_semanas),
+                historico_campo("IG atual", paciente.ig_atual_semanas, automatico=True),
+                historico_campo("DPP calculada", paciente.dpp, automatico=True),
+                historico_campo("Nº de gestações", paciente.numero_gestacoes),
+                historico_campo("Consulta regular UBS", paciente.consulta_regular_ubs),
+                historico_campo("Avaliação odonto", paciente.avaliacao_odonto),
+                historico_campo("Classificação de risco", paciente.classificacao_risco, automatico=True),
+            ],
+        ),
+        historico_secao(
+            "Triagem e exames",
+            [
+                historico_campo("Risco intermediário", paciente.criterio_risco_intermediario),
+                historico_campo("Alto risco", paciente.criterio_alto_risco),
+                historico_campo("HAC descontrole", paciente.hac_descontrole),
+                historico_campo("DM descontrole", paciente.dm_descontrole),
+                historico_campo("Teste da mamãe 1", paciente.teste_mamae_1),
+                historico_campo("Teste da mamãe 2", paciente.teste_mamae_2),
+                historico_campo("Exames rotina sangue", paciente.exames_rotina_sangue),
+                historico_campo("Resultados", paciente.resultados),
+            ],
+        ),
+        historico_secao(
+            "Sinais vitais",
+            [
+                historico_campo("Peso kg", paciente.peso),
+                historico_campo("Estatura cm", paciente.estatura),
+                historico_campo("IMC calculado", paciente.imc, automatico=True),
+                historico_campo("Glicemia capilar", paciente.glicemia_capilar),
+                historico_campo("Respiração", paciente.respiracao),
+                historico_campo("AFU", paciente.afu),
+                historico_campo("PA", paciente.pa),
+                historico_campo("BCF", paciente.bcf),
+                historico_campo("Freq. cardíaca", paciente.freq_card),
+            ],
+        ),
+    ]
+
+
+def dados_historico_idoso(paciente):
+    return [
+        historico_secao(
+            "Dados pessoais",
+            [
+                historico_campo("Nome completo", paciente.nome_completo),
+                historico_campo("CPF", format_cpf(paciente.cpf)),
+                historico_campo("ACS", paciente.acs),
+                historico_campo("Data de nascimento", paciente.data_nascimento),
+                historico_campo("Idade", paciente.idade, automatico=True),
+                historico_campo("Sexo", paciente.sexo),
+                historico_campo("Telefone", paciente.telefone),
+            ],
+        ),
+        historico_secao(
+            "IVCF-20",
+            [
+                historico_campo("Autopercepção ruim", paciente.ivcf_autopercepcao_ruim),
+                historico_campo("Compras", paciente.ivcf_compras),
+                historico_campo("Dinheiro", paciente.ivcf_dinheiro),
+                historico_campo("Trabalho doméstico", paciente.ivcf_domestico),
+                historico_campo("Banho", paciente.ivcf_banho),
+                historico_campo("Esquecimento", paciente.ivcf_esquecimento),
+                historico_campo("Esquecimento piorando", paciente.ivcf_esquecimento_piorando),
+                historico_campo("Esquecimento impede rotina", paciente.ivcf_esquecimento_impede),
+                historico_campo("Desânimo", paciente.ivcf_desanimo),
+                historico_campo("Perda de interesse", paciente.ivcf_perda_interesse),
+                historico_campo("Braços", paciente.ivcf_bracos),
+                historico_campo("Objetos", paciente.ivcf_objetos),
+                historico_campo("Capacidade aeróbica", paciente.ivcf_capacidade_aerobica),
+                historico_campo("Marcha", paciente.ivcf_marcha),
+                historico_campo("Quedas", paciente.ivcf_quedas),
+                historico_campo("Incontinência", paciente.ivcf_incontinencia),
+                historico_campo("Visão", paciente.ivcf_visao),
+                historico_campo("Audição", paciente.ivcf_audicao),
+                historico_campo("Comorbidades", paciente.ivcf_comorbidades),
+            ],
+        ),
+        historico_secao(
+            "Resultado e observações",
+            [
+                historico_campo("IVCF pontos", paciente.ivcf_pontos, automatico=True),
+                historico_campo("Classificação IVCF", paciente.classificacao_ivcf, automatico=True),
+                historico_campo("Estrato clínico-funcional", paciente.estrato_clinico_funcional, automatico=True),
+                historico_campo("Observações", paciente.observacoes),
+                historico_campo("Atualizado em", paciente.atualizado_em, automatico=True),
+            ],
+        ),
+    ]
+
+
+HISTORICO_DADOS = {
+    "cronico": dados_historico_cronico,
+    "idoso": dados_historico_idoso,
+    "gestante": dados_historico_gestante,
+}
 
 
 # ----------------------------------------------------------------------------
@@ -628,22 +912,43 @@ def register_routes(app):
 
     @app.route("/")
     def dashboard():
-        total_cronicos = PacienteCronico.query.count()
-        total_gestantes = Gestante.query.count()
-        total_idosos = PacienteIdoso.query.count()
+        acs = request.args.get("acs", "").strip()
+
+        cronicos_query = PacienteCronico.query
+        gestantes_query = Gestante.query
+        idosos_query = PacienteIdoso.query
+        if acs:
+            cronicos_query = cronicos_query.filter(PacienteCronico.acs == acs)
+            gestantes_query = gestantes_query.filter(Gestante.acs == acs)
+            idosos_query = idosos_query.filter(PacienteIdoso.acs == acs)
+
+        total_cronicos = cronicos_query.count()
+        total_gestantes = gestantes_query.count()
+        total_idosos = idosos_query.count()
         riscos_cronicos = [
             row
-            for row in count_by(PacienteCronico, PacienteCronico.risco_estratificado)
+            for row in cronicos_query.with_entities(
+                PacienteCronico.risco_estratificado,
+                db.func.count(PacienteCronico.id),
+            )
+            .group_by(PacienteCronico.risco_estratificado)
+            .all()
             if not is_prevent_status(row[0]) and row[0] != ERCV_PENDENTE
         ]
-        riscos_gestantes = count_by(Gestante, Gestante.classificacao_risco)
-        # Pendência de estratificação: falta a faixa do ERCV para concluir.
-        ercv_pendente = PacienteCronico.query.filter(
+        riscos_gestantes = (
+            gestantes_query.with_entities(
+                Gestante.classificacao_risco,
+                db.func.count(Gestante.id),
+            )
+            .group_by(Gestante.classificacao_risco)
+            .all()
+        )
+        ercv_pendente = cronicos_query.filter(
             PacienteCronico.risco_estratificado == ERCV_PENDENTE
         ).count()
         hoje = date.today()
         proximas_dpps = (
-            Gestante.query.filter(
+            gestantes_query.filter(
                 Gestante.dpp >= hoje,
                 Gestante.dpp <= hoje + timedelta(days=30),
             )
@@ -652,7 +957,7 @@ def register_routes(app):
             .all()
         )
         cronicos_alerta = (
-            PacienteCronico.query.filter(
+            cronicos_query.filter(
                 or_(
                     PacienteCronico.risco_estratificado.ilike("%alto%"),
                     PacienteCronico.risco_estratificado == ERCV_PENDENTE,
@@ -662,14 +967,130 @@ def register_routes(app):
             .limit(6)
             .all()
         )
-        gestantes_alto_risco = Gestante.query.filter(
+        gestantes_alto_risco = gestantes_query.filter(
             or_(
                 Gestante.classificacao_risco.ilike("%alto%"),
                 Gestante.criterio_alto_risco.is_(True),
             )
         ).count()
+        idosos_frageis = idosos_query.filter(
+            PacienteIdoso.classificacao_ivcf.ilike("%fr\u00e1gil%")
+        ).count()
+
+        comorb_defs = [
+            ("HAS", PacienteCronico.has),
+            ("DM2", PacienteCronico.dm2),
+            ("DM1", PacienteCronico.dm1),
+            ("Pr\u00e9-diabetes", PacienteCronico.pre_diabetes),
+            ("Obesidade", PacienteCronico.obesidade),
+            ("Tabagismo", PacienteCronico.tabagismo),
+            ("Dislipidemia", PacienteCronico.dislipidemia),
+            ("DRC", PacienteCronico.drc),
+            ("LOA", PacienteCronico.loa),
+            ("DCV/aterosclerose", PacienteCronico.doenca_aterosclerotica),
+        ]
+        comorbidades = [
+            {"label": label, "total": cronicos_query.filter(column.is_(True)).count()}
+            for label, column in comorb_defs
+        ]
+        max_comorbidades = max([item["total"] for item in comorbidades] + [1])
+
+        acs_nomes = sorted(
+            {
+                nome
+                for (nome,) in db.session.query(PacienteCronico.acs)
+                .filter(PacienteCronico.acs.isnot(None), PacienteCronico.acs != "")
+                .distinct()
+                .all()
+            }
+            | {
+                nome
+                for (nome,) in db.session.query(Gestante.acs)
+                .filter(Gestante.acs.isnot(None), Gestante.acs != "")
+                .distinct()
+                .all()
+            }
+            | {
+                nome
+                for (nome,) in db.session.query(PacienteIdoso.acs)
+                .filter(PacienteIdoso.acs.isnot(None), PacienteIdoso.acs != "")
+                .distinct()
+                .all()
+            }
+            | {ag.nome for ag in AgenteSaude.query.filter_by(ativo=True).all()}
+        )
+        agentes_map = {ag.nome: ag for ag in AgenteSaude.query.all()}
+        areas_acs = []
+        for nome in acs_nomes:
+            area_cronicos = PacienteCronico.query.filter(PacienteCronico.acs == nome)
+            area_gestantes = Gestante.query.filter(Gestante.acs == nome)
+            area_idosos = PacienteIdoso.query.filter(PacienteIdoso.acs == nome)
+            total_area_cronicos = area_cronicos.count()
+            total_area_gestantes = area_gestantes.count()
+            total_area_idosos = area_idosos.count()
+            total_area = total_area_cronicos + total_area_gestantes + total_area_idosos
+            carga_comorbidades = sum(
+                area_cronicos.filter(column.is_(True)).count()
+                for _label, column in comorb_defs
+            )
+            alto_risco = (
+                area_cronicos.filter(
+                    PacienteCronico.risco_estratificado.ilike("%alto%")
+                ).count()
+                + area_gestantes.filter(
+                    or_(
+                        Gestante.classificacao_risco.ilike("%alto%"),
+                        Gestante.criterio_alto_risco.is_(True),
+                    )
+                ).count()
+                + area_idosos.filter(
+                    PacienteIdoso.classificacao_ivcf.ilike("%fr\u00e1gil%")
+                ).count()
+            )
+            agente = agentes_map.get(nome)
+            areas_acs.append(
+                {
+                    "nome": nome,
+                    "micro_area": agente.micro_area if agente else "",
+                    "equipe": agente.equipe if agente else "",
+                    "total": total_area,
+                    "cronicos": total_area_cronicos,
+                    "gestantes": total_area_gestantes,
+                    "idosos": total_area_idosos,
+                    "comorbidades": carga_comorbidades,
+                    "alto_risco": alto_risco,
+                }
+            )
+        areas_acs.sort(key=lambda item: (item["micro_area"] or "ZZZ", item["nome"]))
+        max_area_total = max([item["total"] for item in areas_acs] + [1])
+        max_area_comorbidades = max([item["comorbidades"] for item in areas_acs] + [1])
+        acs_info = AgenteSaude.query.filter_by(nome=acs).first() if acs else None
+        area_atual = next(
+            (item for item in areas_acs if acs and item["nome"] == acs),
+            None,
+        )
+        areas_base = [area_atual] if area_atual else areas_acs
+        total_comorbidades_area = sum(item["comorbidades"] for item in areas_base)
+        total_alto_risco_area = sum(item["alto_risco"] for item in areas_base)
+        total_registros_area = sum(item["total"] for item in areas_base)
+        media_registros_area = (
+            round(total_registros_area / len(areas_base), 1) if areas_base else 0
+        )
+        area_maior_comorbidade = max(
+            areas_base,
+            key=lambda item: (item["comorbidades"], item["alto_risco"], item["total"]),
+            default=None,
+        )
+        areas_destaque = sorted(
+            areas_base,
+            key=lambda item: (item["comorbidades"], item["alto_risco"], item["total"]),
+            reverse=True,
+        )[:4]
+
         return render_template(
             "dashboard.html",
+            acs_sel=acs,
+            acs_info=acs_info,
             total_cronicos=total_cronicos,
             total_gestantes=total_gestantes,
             total_idosos=total_idosos,
@@ -678,9 +1099,21 @@ def register_routes(app):
             riscos_cronicos_map=risco_counts(riscos_cronicos),
             riscos_gestantes_map=risco_counts(riscos_gestantes),
             ercv_pendente=ercv_pendente,
-            total_has=PacienteCronico.query.filter_by(has=True).count(),
-            total_dm2=PacienteCronico.query.filter_by(dm2=True).count(),
+            total_has=cronicos_query.filter_by(has=True).count(),
+            total_dm2=cronicos_query.filter_by(dm2=True).count(),
             gestantes_alto_risco=gestantes_alto_risco,
+            idosos_frageis=idosos_frageis,
+            comorbidades=comorbidades,
+            max_comorbidades=max_comorbidades,
+            areas_acs=areas_acs,
+            max_area_total=max_area_total,
+            max_area_comorbidades=max_area_comorbidades,
+            area_atual=area_atual,
+            areas_destaque=areas_destaque,
+            total_comorbidades_area=total_comorbidades_area,
+            total_alto_risco_area=total_alto_risco_area,
+            media_registros_area=media_registros_area,
+            area_maior_comorbidade=area_maior_comorbidade,
             proximas_dpps=proximas_dpps,
             cronicos_alerta=cronicos_alerta,
         )
@@ -689,6 +1122,7 @@ def register_routes(app):
     def lista_cronicos():
         busca = request.args.get("q", "").strip()
         acs = request.args.get("acs", "").strip()
+        risco = request.args.get("risco", "").strip()
         query = PacienteCronico.query
         if busca:
             busca_digits = only_digits(busca)
@@ -701,12 +1135,24 @@ def register_routes(app):
             query = query.filter(or_(*filters))
         if acs:
             query = query.filter(PacienteCronico.acs == acs)
+        if risco:
+            query = query.filter(PacienteCronico.risco_estratificado == risco)
         page = request.args.get("page", 1, type=int)
         paginacao = db.paginate(
-            query.order_by(PacienteCronico.nome_completo),
+            query.options(joinedload(PacienteCronico.avaliacao_prevent)).order_by(
+                PacienteCronico.nome_completo
+            ),
             page=page,
             per_page=PER_PAGE,
             error_out=False,
+        )
+        riscos_disponiveis = sorted(
+            risco
+            for (risco,) in db.session.query(PacienteCronico.risco_estratificado)
+            .filter(PacienteCronico.risco_estratificado.isnot(None))
+            .distinct()
+            .all()
+            if risco
         )
         return render_template(
             "lista_cronicos.html",
@@ -714,6 +1160,8 @@ def register_routes(app):
             paginacao=paginacao,
             busca=busca,
             acs_sel=acs,
+            risco_sel=risco,
+            riscos_disponiveis=riscos_disponiveis,
         )
 
     @app.route("/cronicos/novo", methods=["GET", "POST"])
@@ -728,6 +1176,10 @@ def register_routes(app):
             db.session.add(paciente)
             registrar_auditoria("criar", "cronico", detalhe=paciente.nome_completo)
             if commit_session():
+                registrar_historico_risco(
+                    "cronico", paciente.id, paciente.risco_estratificado, None,
+                    detalhe_historico_cronico(paciente),
+                )
                 flash("Paciente crônico cadastrado com sucesso.", "success")
                 return redirect(url_for("lista_cronicos"))
             flash("Não foi possível salvar: já existe um paciente com este CPF.", "danger")
@@ -737,6 +1189,7 @@ def register_routes(app):
     def editar_cronico(id):
         paciente = PacienteCronico.query.get_or_404(id)
         if request.method == "POST":
+            risco_anterior = paciente.risco_estratificado
             apply_form(paciente, CRONICO_FIELDS)
             if not cpf_valido(paciente.cpf):
                 flash("CPF inválido. Informe os 11 dígitos.", "warning")
@@ -744,6 +1197,10 @@ def register_routes(app):
             recalculate_cronico(paciente)
             registrar_auditoria("editar", "cronico", paciente.id, paciente.nome_completo)
             if commit_session():
+                registrar_historico_risco(
+                    "cronico", paciente.id, paciente.risco_estratificado, risco_anterior,
+                    detalhe_historico_cronico(paciente),
+                )
                 flash("Paciente crônico atualizado com sucesso.", "success")
                 return redirect(url_for("lista_cronicos"))
             flash("Não foi possível salvar: já existe um paciente com este CPF.", "danger")
@@ -811,6 +1268,10 @@ def register_routes(app):
             db.session.add(paciente)
             registrar_auditoria("criar", "idoso", detalhe=paciente.nome_completo)
             if commit_session():
+                registrar_historico_risco(
+                    "idoso", paciente.id, paciente.estrato_clinico_funcional, None,
+                    detalhe_historico_idoso(paciente),
+                )
                 flash("Pessoa idosa cadastrada com sucesso.", "success")
                 return redirect(url_for("lista_idosos"))
             flash("Não foi possível salvar: já existe um paciente com este CPF.", "danger")
@@ -820,6 +1281,7 @@ def register_routes(app):
     def editar_idoso(id):
         paciente = PacienteIdoso.query.get_or_404(id)
         if request.method == "POST":
+            risco_anterior = paciente.estrato_clinico_funcional
             apply_form(paciente, IDOSO_FIELDS)
             if not cpf_valido(paciente.cpf):
                 flash("CPF inválido. Informe os 11 dígitos.", "warning")
@@ -827,6 +1289,10 @@ def register_routes(app):
             recalculate_idoso(paciente)
             registrar_auditoria("editar", "idoso", paciente.id, paciente.nome_completo)
             if commit_session():
+                registrar_historico_risco(
+                    "idoso", paciente.id, paciente.estrato_clinico_funcional, risco_anterior,
+                    detalhe_historico_idoso(paciente),
+                )
                 flash("Pessoa idosa atualizada com sucesso.", "success")
                 return redirect(url_for("lista_idosos"))
             flash("Não foi possível salvar: já existe um paciente com este CPF.", "danger")
@@ -881,6 +1347,31 @@ def register_routes(app):
         # Documentação técnica: como cada cálculo foi arquitetado, com exemplos,
         # e as notas técnicas oficiais (SES-GO) disponíveis para download.
         return render_template("metodologia.html")
+
+    @app.route("/pacientes/<tipo>/<int:id>/historico")
+    def historico_paciente(tipo, id):
+        # Linha do tempo da estratificação de um paciente (evolução do risco).
+        config = HISTORICO_TIPOS.get(tipo)
+        if not config:
+            abort(404)
+        modelo, campo_nome, campo_risco, lista_endpoint = config
+        paciente = modelo.query.get_or_404(id)
+        registros = (
+            HistoricoRisco.query.filter_by(tipo=tipo, paciente_id=id)
+            .order_by(HistoricoRisco.criado_em.desc(), HistoricoRisco.id.desc())
+            .limit(200)
+            .all()
+        )
+        return render_template(
+            "historico.html",
+            tipo=tipo,
+            nome=getattr(paciente, campo_nome),
+            paciente_id=id,
+            risco_atual=getattr(paciente, campo_risco),
+            secoes_dados=HISTORICO_DADOS[tipo](paciente),
+            registros=registros,
+            lista_endpoint=lista_endpoint,
+        )
 
     @app.route("/cronicos/<int:id>/prevent", methods=["GET", "POST"])
     def prevent(id):
@@ -947,34 +1438,34 @@ def register_routes(app):
     def lista_prevent():
         acs = request.args.get("acs", "").strip()
         status = request.args.get("status", "").strip()
-        query = PacienteCronico.query.filter(
-            or_(
-                PacienteCronico.risco_estratificado.in_(PREVENT_STATUS_VALUES),
-                PacienteCronico.avaliacao_prevent.has(),
-            )
+        prevent_calculado = PacienteCronico.avaliacao_prevent.has(
+            AvaliacaoPrevent.risco_cardiovascular_10_anos.like("%!%%", escape="!")
         )
+        prevent_nao_aplicavel = PacienteCronico.avaliacao_prevent.has(
+            AvaliacaoPrevent.risco_cardiovascular_10_anos == "Não aplicável"
+        )
+        prevent_pendente = (
+            ~prevent_calculado
+            & ~prevent_nao_aplicavel
+        )
+        query = PacienteCronico.query
         if acs:
             query = query.filter(PacienteCronico.acs == acs)
         if status == "pendente":
-            query = query.filter(
-                PacienteCronico.risco_estratificado.in_(PREVENT_STATUS_VALUES),
-                ~PacienteCronico.avaliacao_prevent.has(),
-            )
+            query = query.filter(prevent_pendente)
         elif status == "calculado":
-            query = query.filter(PacienteCronico.avaliacao_prevent.has())
+            query = query.filter(prevent_calculado)
         # joinedload evita N+1 ao acessar avaliacao_prevent linha a linha no template.
         query = query.options(
             joinedload(PacienteCronico.avaliacao_prevent)
         ).order_by(PacienteCronico.nome_completo)
         page = request.args.get("page", 1, type=int)
         paginacao = db.paginate(query, page=page, per_page=PER_PAGE, error_out=False)
-        total_calculados = PacienteCronico.query.filter(
-            PacienteCronico.avaliacao_prevent.has()
-        ).count()
-        total_pendentes = PacienteCronico.query.filter(
-            PacienteCronico.risco_estratificado.in_(PREVENT_STATUS_VALUES),
-            ~PacienteCronico.avaliacao_prevent.has(),
-        ).count()
+        total_query = PacienteCronico.query
+        if acs:
+            total_query = total_query.filter(PacienteCronico.acs == acs)
+        total_calculados = total_query.filter(prevent_calculado).count()
+        total_pendentes = total_query.filter(prevent_pendente).count()
         return render_template(
             "lista_prevent.html",
             pacientes=paginacao.items,
@@ -1028,6 +1519,10 @@ def register_routes(app):
             db.session.add(paciente)
             registrar_auditoria("criar", "gestante", detalhe=paciente.nome_paciente)
             if commit_session():
+                registrar_historico_risco(
+                    "gestante", paciente.id, paciente.classificacao_risco, None,
+                    detalhe_historico_gestante(paciente),
+                )
                 flash("Gestante cadastrada com sucesso.", "success")
                 return redirect(url_for("lista_gestantes"))
             flash("Não foi possível salvar: já existe um registro com este CPF.", "danger")
@@ -1037,6 +1532,7 @@ def register_routes(app):
     def editar_gestante(id):
         paciente = Gestante.query.get_or_404(id)
         if request.method == "POST":
+            risco_anterior = paciente.classificacao_risco
             apply_form(paciente, GESTANTE_FIELDS)
             if not cpf_valido(paciente.cpf):
                 flash("CPF inválido. Informe os 11 dígitos.", "warning")
@@ -1044,6 +1540,10 @@ def register_routes(app):
             recalculate_gestante(paciente)
             registrar_auditoria("editar", "gestante", paciente.id, paciente.nome_paciente)
             if commit_session():
+                registrar_historico_risco(
+                    "gestante", paciente.id, paciente.classificacao_risco, risco_anterior,
+                    detalhe_historico_gestante(paciente),
+                )
                 flash("Gestante atualizada com sucesso.", "success")
                 return redirect(url_for("lista_gestantes"))
             flash("Não foi possível salvar: já existe um registro com este CPF.", "danger")

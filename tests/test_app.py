@@ -22,7 +22,7 @@ os.environ["ADMIN_PASSWORD"] = "admin12345"
 os.environ["SECRET_KEY"] = "chave-de-teste-fixa"
 
 import app as appmod  # noqa: E402
-from models import Usuario, db  # noqa: E402
+from models import AvaliacaoPrevent, HistoricoRisco, PacienteCronico, PacienteIdoso, Usuario, db  # noqa: E402
 from security import hash_senha  # noqa: E402
 from utils import Page, paginate_list  # noqa: E402
 
@@ -153,6 +153,124 @@ class TestCronicoCRUD(BaseCase):
         self.assertIn("já existe", r.get_data(as_text=True).lower())
 
 
+    def test_prevent_incompleto_continua_pendente(self):
+        c = self.admin_client()
+        with self.app.app_context():
+            paciente = PacienteCronico(
+                nome_completo="Prevent Pendente",
+                cpf="39053344705",
+                risco_estratificado="Calcular Prevent",
+                idade=55,
+                pas=128,
+            )
+            db.session.add(paciente)
+            db.session.flush()
+            db.session.add(
+                AvaliacaoPrevent(
+                    paciente=paciente,
+                    pas=128,
+                    pas_calc_prevent=128,
+                    risco_cardiovascular_10_anos="Inserir exames",
+                )
+            )
+            paciente_risco_alto = PacienteCronico(
+                nome_completo="Prevent Sem Exames",
+                cpf="39053344888",
+                risco_estratificado="Risco Alto",
+                idade=54,
+                pas=128,
+            )
+            db.session.add(paciente_risco_alto)
+            db.session.flush()
+            db.session.add(
+                AvaliacaoPrevent(
+                    paciente=paciente_risco_alto,
+                    pas=128,
+                    pas_calc_prevent=128,
+                    risco_cardiovascular_10_anos="Inserir exames",
+                )
+            )
+            db.session.commit()
+
+        body = c.get("/prevent?status=pendente").get_data(as_text=True)
+        self.assertIn("Prevent Pendente", body)
+        self.assertIn("Prevent Sem Exames", body)
+        self.assertIn("Pendente", body)
+
+        body = c.get("/prevent?status=calculado").get_data(as_text=True)
+        self.assertNotIn("Prevent Pendente", body)
+        self.assertNotIn("Prevent Sem Exames", body)
+
+
+    def test_cronico_novo_entra_na_fila_prevent_pendente(self):
+        c = self.admin_client()
+        with self.app.app_context():
+            db.session.add(
+                PacienteCronico(
+                    nome_completo="Prevent Fila Padrao",
+                    cpf="19120568191",
+                    risco_estratificado="Risco Baixo",
+                )
+            )
+            db.session.commit()
+
+        prevent = c.get("/prevent?status=pendente").get_data(as_text=True)
+        self.assertIn("Prevent Fila Padrao", prevent)
+        self.assertIn("Pendente", prevent)
+
+        cronicos = c.get("/cronicos").get_data(as_text=True)
+        self.assertIn("Prevent Fila Padrao", cronicos)
+        self.assertIn("PREVENT", cronicos)
+        self.assertIn("Pendente", cronicos)
+
+
+    def test_filtro_ercv_pendente_em_cronicos(self):
+        c = self.admin_client()
+        with self.app.app_context():
+            db.session.add(
+                PacienteCronico(
+                    nome_completo="Paciente ERCV Pendente",
+                    cpf="86729917025",
+                    risco_estratificado="Calcular ERCV",
+                )
+            )
+            db.session.add(
+                PacienteCronico(
+                    nome_completo="Paciente Risco Baixo",
+                    cpf="51920849046",
+                    risco_estratificado="Risco Baixo",
+                )
+            )
+            db.session.commit()
+
+        dashboard = c.get("/").get_data(as_text=True)
+        self.assertIn("/cronicos?risco=Calcular+ERCV", dashboard)
+
+        body = c.get("/cronicos?risco=Calcular%20ERCV").get_data(as_text=True)
+        self.assertIn("Paciente ERCV Pendente", body)
+        self.assertNotIn("Paciente Risco Baixo", body)
+
+
+    def test_dashboard_card_ercv_sem_pendencia_nao_aplica_filtro_vazio(self):
+        c = self.admin_client()
+        with self.app.app_context():
+            db.session.add(
+                PacienteCronico(
+                    nome_completo="Paciente Sem Pendencia",
+                    cpf="19120568000",
+                    risco_estratificado="Risco Baixo",
+                )
+            )
+            db.session.commit()
+
+        dashboard = c.get("/").get_data(as_text=True)
+        self.assertIn('href="/cronicos"', dashboard)
+        self.assertNotIn("/cronicos?risco=Calcular+ERCV", dashboard)
+
+        body = c.get("/cronicos").get_data(as_text=True)
+        self.assertIn("Paciente Sem Pendencia", body)
+
+
 class TestACS(BaseCase):
     def test_agente_aparece_no_dropdown(self):
         c = self.admin_client()
@@ -184,6 +302,58 @@ class TestIdosoCRUD(BaseCase):
         body = r.get_data(as_text=True)
         self.assertIn("Idoso Teste", body)
         self.assertIn("Alto risco", body)
+
+    def test_historico_idoso_registra_evolucao_do_risco(self):
+        c = self.admin_client()
+        tok = token(c, "/idosos/novo")
+        r = c.post(
+            "/idosos/novo",
+            data={
+                "nome_completo": "Idoso Historico",
+                "cpf": "11144477735",
+                "data_nascimento": "1940-01-01",
+                "sexo": "Masculino",
+                "ivcf_banho": "on",
+                "ivcf_comorbidades": "on",
+                "ivcf_visao": "on",
+                "csrf_token": tok,
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(r.status_code, 200)
+
+        with self.app.app_context():
+            paciente = PacienteIdoso.query.filter_by(cpf="111.444.777-35").first()
+            self.assertIsNotNone(paciente)
+            paciente_id = paciente.id
+            inicial = HistoricoRisco.query.filter_by(tipo="idoso", paciente_id=paciente_id).one()
+            self.assertEqual(inicial.tendencia, "inicial")
+
+        body = c.get(f"/pacientes/idoso/{paciente_id}/historico").get_data(as_text=True)
+        self.assertIn("Idoso Historico", body)
+        self.assertIn("Primeira avaliação", body)
+
+        r = c.post(
+            f"/idosos/editar/{paciente_id}",
+            data={
+                "nome_completo": "Idoso Historico",
+                "cpf": "11144477735",
+                "data_nascimento": "1940-01-01",
+                "sexo": "Masculino",
+                "csrf_token": token(c, f"/idosos/editar/{paciente_id}"),
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(r.status_code, 200)
+
+        with self.app.app_context():
+            tendencias = [
+                h.tendencia
+                for h in HistoricoRisco.query.filter_by(tipo="idoso", paciente_id=paciente_id)
+                .order_by(HistoricoRisco.id.asc())
+                .all()
+            ]
+        self.assertEqual(tendencias, ["inicial", "desceu"])
 
 
 class TestPaginacao(unittest.TestCase):

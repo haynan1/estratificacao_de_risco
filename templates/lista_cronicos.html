@@ -16,8 +16,19 @@
     <input class="form-control" type="search" name="q" value="{{ busca }}" placeholder="Buscar por nome ou CPF">
   </div>
   <div style="flex: 0 1 220px;">{{ select_acs(acs_sel, placeholder="Todos os ACS") }}</div>
+  <div style="flex: 0 1 230px;">
+    <select class="form-select" name="risco">
+      <option value="" {{ "selected" if not risco_sel }}>Todos os riscos</option>
+      {% for risco in riscos_disponiveis %}
+        <option value="{{ risco }}" {{ "selected" if risco_sel == risco }}>{{ risco }}</option>
+      {% endfor %}
+      {% if risco_sel and risco_sel not in riscos_disponiveis %}
+        <option value="{{ risco_sel }}" selected>{{ risco_sel }}</option>
+      {% endif %}
+    </select>
+  </div>
   <button class="btn btn-primary" type="submit">Filtrar</button>
-  {% if busca or acs_sel %}<a class="btn btn-ghost" href="{{ url_for('lista_cronicos') }}">Limpar</a>{% endif %}
+  {% if busca or acs_sel or risco_sel %}<a class="btn btn-ghost" href="{{ url_for('lista_cronicos') }}">Limpar</a>{% endif %}
 </form>
 
 <div class="table-card">
@@ -30,6 +41,7 @@
           <th>ACS</th>
           <th>Condições</th>
           <th>Risco</th>
+          <th>PREVENT</th>
           <th class="text-end">Ações</th>
         </tr>
       </thead>
@@ -49,9 +61,21 @@
               {% if not (paciente.has or paciente.dm2 or paciente.dm1 or paciente.pre_diabetes) %}—{% endif %}
             </td>
             <td>{% include "_badge_risco.html" with context %}</td>
+            <td>
+              {% if paciente.prevent_calculado %}
+                <span class="badge-risk risk-low">Conclu&iacute;do</span>
+              {% elif paciente.prevent_nao_aplicavel %}
+                <span class="badge-risk risk-none">N&atilde;o aplic&aacute;vel</span>
+              {% else %}
+                <span class="badge-risk risk-mid">Pendente</span>
+              {% endif %}
+            </td>
             <td class="text-end text-nowrap">
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('calcular_risco_erg', id=paciente.id) }}">Calcular risco</a>
               <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('prevent', id=paciente.id) }}">Prevent</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('historico_paciente', tipo='cronico', id=paciente.id) }}" title="Histórico de risco" aria-label="Histórico de risco">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>
+              </a>
               <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('editar_cronico', id=paciente.id) }}">Editar</a>
               <form class="d-inline" method="post" action="{{ url_for('excluir_cronico', id=paciente.id) }}" data-confirm-form data-confirm-title="Remover paciente" data-confirm-message="Remover este paciente? Esta ação não poderá ser desfeita.">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -61,11 +85,11 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="6">
+            <td colspan="7">
               <div class="empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M17 9h5M19.5 6.5v5"/></svg>
-                <strong>{% if busca or acs_sel %}Nenhum paciente encontrado{% else %}Nenhum paciente cadastrado{% endif %}</strong>
-                <span>{% if busca or acs_sel %}Ajuste os filtros de busca ou de ACS.{% else %}Comece cadastrando o primeiro paciente crônico.{% endif %}</span>
+                <strong>{% if busca or acs_sel or risco_sel %}Nenhum paciente encontrado{% else %}Nenhum paciente cadastrado{% endif %}</strong>
+                <span>{% if busca or acs_sel or risco_sel %}Ajuste os filtros de busca, ACS ou risco.{% else %}Comece cadastrando o primeiro paciente crônico.{% endif %}</span>
               </div>
             </td>
           </tr>
@@ -75,5 +99,5 @@
   </div>
 </div>
 
-{{ pager(paginacao, {"q": busca, "acs": acs_sel}) }}
+{{ pager(paginacao, {"q": busca, "acs": acs_sel, "risco": risco_sel}) }}
 {% endblock %}

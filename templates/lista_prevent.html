@@ -77,8 +77,10 @@
             <td>
               {% if paciente.precisa_prevent %}
                 <span class="badge-risk risk-mid">Pendente</span>
-              {% elif av %}
+              {% elif paciente.prevent_calculado %}
                 <span class="badge-risk risk-low">Calculado</span>
+              {% elif paciente.prevent_nao_aplicavel %}
+                <span class="badge-risk risk-none">N&atilde;o aplic&aacute;vel</span>
               {% else %}
                 <span class="badge-risk risk-none">Sem escore</span>
               {% endif %}
@@ -94,7 +96,7 @@
               <div class="empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.4h4l1.6-3.2 3 6 1.6-2.8h6.8"/><path d="M21 6.5a3.5 3.5 0 0 0-6-2.4A3.5 3.5 0 0 0 9 6.5"/></svg>
                 <strong>{% if acs_sel or status_sel %}Nenhum paciente encontrado{% else %}Nenhum paciente para PREVENT{% endif %}</strong>
-                <span>{% if acs_sel or status_sel %}Ajuste os filtros de status ou de ACS.{% else %}Marque um crônico como “Calcular Prevent” para vê-lo aqui.{% endif %}</span>
+                <span>{% if acs_sel or status_sel %}Ajuste os filtros de status ou de ACS.{% else %}Cadastre pacientes cr&ocirc;nicos para acompanhar a fila PREVENT.{% endif %}</span>
               </div>
             </td>
           </tr>

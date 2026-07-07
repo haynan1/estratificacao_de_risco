@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import select_acs with context %}
 {% block title %}Dashboard{% endblock %}
 
 {% macro risk_class(label) %}{% set l = (label or '')|lower %}{% if 'alto' in l %}risk-high{% elif 'habitual' in l or 'baixo' in l or 'sem risco' in l %}risk-low{% elif 'médio' in l or 'medio' in l or 'moderado' in l or 'prevent' in l or 'ercv' in l or 'intermedi' in l %}risk-mid{% else %}risk-none{% endif %}{% endmacro %}
@@ -14,6 +15,29 @@
     <a class="btn btn-primary" href="{{ url_for('novo_cronico') }}">Novo crônico</a>
   </div>
 </div>
+
+<form class="panel dashboard-filter" method="get">
+  <div class="dashboard-filter-field">
+    <label class="form-label" for="dashboard-acs">Filtrar por ACS</label>
+    {{ select_acs(acs_sel, placeholder="Geral - todos os ACS") }}
+  </div>
+  <div class="dashboard-filter-actions">
+    <button class="btn btn-primary" type="submit">Aplicar</button>
+    {% if acs_sel %}
+      <a class="btn btn-ghost" href="{{ url_for('dashboard') }}">Ver geral</a>
+    {% endif %}
+  </div>
+  <div class="dashboard-filter-context">
+    {% if acs_sel %}
+      <strong>{{ acs_sel }}</strong>
+      {% if acs_info and acs_info.micro_area %}<span>Microárea {{ acs_info.micro_area }}</span>{% endif %}
+      {% if acs_info and acs_info.equipe %}<span>{{ acs_info.equipe }}</span>{% endif %}
+    {% else %}
+      <strong>Visão geral</strong>
+      <span>Todos os ACS, microáreas e cadastros ativos na base.</span>
+    {% endif %}
+  </div>
+</form>
 
 <div class="row g-3 mb-4">
   <div class="col-sm-6 col-xl-3">
@@ -39,14 +63,14 @@
     </div>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <a class="metric is-alert" href="{{ url_for('lista_cronicos') }}" style="color: inherit;">
+    <a class="metric is-alert" href="{{ url_for('lista_cronicos', risco='Calcular ERCV', acs=acs_sel) if ercv_pendente else url_for('lista_cronicos', acs=acs_sel) }}" style="color: inherit;">
       <span class="metric-accent"></span>
       <div class="metric-label">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
         ERCV pendente
       </div>
       <div class="metric-value">{{ ercv_pendente }}</div>
-      <div class="metric-sub">Aguardando faixa do ERCV →</div>
+      <div class="metric-sub">{{ "Aguardando faixa do ERCV" if ercv_pendente else "Nenhum ERCV pendente" }} →</div>
     </a>
   </div>
   <div class="col-sm-6 col-xl-3">
@@ -57,7 +81,7 @@
         Registros monitorados
       </div>
       <div class="metric-value">{{ total_cronicos + total_gestantes + total_idosos }}</div>
-      <div class="metric-sub">{{ total_idosos }} idosos na base</div>
+      <div class="metric-sub">{{ total_idosos }} idosos · {{ idosos_frageis }} frágeis</div>
     </div>
   </div>
 </div>
@@ -113,6 +137,99 @@
   </div>
 </div>
 
+<div class="row g-3 mb-4">
+  <div class="col-xl-5">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>Comorbidades dos cr&ocirc;nicos</h2>
+        <span class="count-pill">{{ comorbidades|sum(attribute='total') }}</span>
+      </div>
+      <div class="dash-chart">
+        {% for item in comorbidades %}
+          {% set width = (item.total / max_comorbidades * 100) if max_comorbidades else 0 %}
+          <div class="dash-chart-row" tabindex="0" title="{{ item.label }}: {{ item.total }}">
+            <span class="dash-chart-label">{{ item.label }}</span>
+            <span class="dash-bar"><span class="dash-bar-fill" data-width="{{ width|round(1) }}"></span></span>
+            <strong class="dash-chart-value">{{ item.total }}</strong>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+  <div class="col-xl-7">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>{% if acs_sel %}Resumo da &aacute;rea selecionada{% else %}Resumo operacional das &aacute;reas{% endif %}</h2>
+        <span class="count-pill">{{ areas_acs|length if not acs_sel else 1 }}</span>
+      </div>
+      <div class="area-summary-grid">
+        <div class="area-summary-card">
+          <span>&Aacute;reas acompanhadas</span>
+          <strong>{{ areas_acs|length if not acs_sel else 1 }}</strong>
+          <small>{% if acs_sel %}vis&atilde;o filtrada{% else %}micro&aacute;reas com ACS ou pacientes{% endif %}</small>
+        </div>
+        <div class="area-summary-card">
+          <span>Comorbidades</span>
+          <strong>{{ total_comorbidades_area }}</strong>
+          <small>somat&oacute;rio dos cr&ocirc;nicos</small>
+        </div>
+        <div class="area-summary-card">
+          <span>Alto risco/fr&aacute;gil</span>
+          <strong>{{ total_alto_risco_area }}</strong>
+          <small>cr&ocirc;nicos, gestantes e idosos</small>
+        </div>
+        <div class="area-summary-card">
+          <span>M&eacute;dia por &aacute;rea</span>
+          <strong>{{ media_registros_area }}</strong>
+          <small>cadastros monitorados</small>
+        </div>
+      </div>
+
+      {% if area_maior_comorbidade %}
+        <div class="area-focus">
+          <div>
+            <span class="area-focus-kicker">Maior carga de comorbidades</span>
+            <strong>{{ area_maior_comorbidade.nome }}</strong>
+            <small>
+              {% if area_maior_comorbidade.micro_area %}Micro&aacute;rea {{ area_maior_comorbidade.micro_area }}{% else %}Sem micro&aacute;rea informada{% endif %}
+              {% if area_maior_comorbidade.equipe %} &middot; {{ area_maior_comorbidade.equipe }}{% endif %}
+            </small>
+          </div>
+          <div class="area-focus-numbers">
+            <span>{{ area_maior_comorbidade.comorbidades }} comorb.</span>
+            <span>{{ area_maior_comorbidade.alto_risco }} alto risco/fr&aacute;gil</span>
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="area-highlight-list">
+        {% for area in areas_destaque %}
+          {% set comorb_width = (area.comorbidades / max_area_comorbidades * 100) if max_area_comorbidades else 0 %}
+          <div class="area-highlight-row" tabindex="0" title="{{ area.nome }}: {{ area.comorbidades }} comorbidades">
+            <div class="area-main">
+              <strong>{{ area.nome }}</strong>
+              <span>
+                {% if area.micro_area %}Micro&aacute;rea {{ area.micro_area }}{% else %}Sem micro&aacute;rea informada{% endif %}
+                {% if area.equipe %} &middot; {{ area.equipe }}{% endif %}
+              </span>
+            </div>
+            <span class="dash-bar"><span class="dash-bar-fill is-alert" data-width="{{ comorb_width|round(1) }}"></span></span>
+            <div class="area-highlight-values">
+              <strong>{{ area.comorbidades }}</strong>
+              <span>{{ area.total }} cadastros</span>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8-8-2Z"/></svg>
+            <strong>Nenhuma &aacute;rea para exibir</strong>
+            <span>Cadastre ACS ou vincule pacientes para montar o relat&oacute;rio.</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
 <div class="row g-3">
   <div class="col-xl-6">
     <section class="panel h-100">

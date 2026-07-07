@@ -18,6 +18,28 @@ class Auditoria(db.Model):
     criado_em = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
 
 
+class HistoricoRisco(db.Model):
+    """Linha do tempo da estratificação de cada paciente (evolução clínica).
+
+    Um registro é criado sempre que o risco muda ao salvar o paciente. Serve para
+    acompanhar melhora ou piora — em especial, quando o risco é reduzido. Vale
+    para os três módulos (crônico, gestante, idoso) via `tipo` + `paciente_id`.
+    """
+
+    __tablename__ = "historico_risco"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tipo = db.Column(db.String(20), nullable=False, index=True)
+    paciente_id = db.Column(db.Integer, nullable=False, index=True)
+    risco = db.Column(db.String(80), nullable=False)
+    risco_anterior = db.Column(db.String(80))
+    # "inicial" | "desceu" | "subiu" | "manteve" | "atualizado"
+    tendencia = db.Column(db.String(12), nullable=False, default="inicial")
+    detalhe = db.Column(db.String(200))
+    autor = db.Column(db.String(80))
+    criado_em = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
+
+
 class AgenteSaude(db.Model):
     __tablename__ = "agente_saude"
 
@@ -104,7 +126,21 @@ class PacienteCronico(db.Model):
 
     @property
     def precisa_prevent(self):
-        return (self.risco_estratificado or "").lower() == "calcular prevent" and not self.avaliacao_prevent
+        return not self.prevent_calculado and not self.prevent_nao_aplicavel
+
+    @property
+    def prevent_calculado(self):
+        if not self.avaliacao_prevent:
+            return False
+        resultado = (self.avaliacao_prevent.risco_cardiovascular_10_anos or "").strip()
+        return resultado.endswith("%")
+
+    @property
+    def prevent_nao_aplicavel(self):
+        if not self.avaliacao_prevent:
+            return False
+        resultado = (self.avaliacao_prevent.risco_cardiovascular_10_anos or "").strip()
+        return resultado.lower() == "não aplicável"
 
 
 class PacienteIdoso(db.Model):

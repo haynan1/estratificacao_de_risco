@@ -117,4 +117,43 @@
     <button class="btn btn-primary" type="submit">Salvar e calcular IVCF-20</button>
   </div>
 </form>
+
+<details class="form-field-guide">
+  <summary class="form-field-guide-toggle">
+    <span>
+      <span class="guide-kicker">Legenda</span>
+      <strong id="legenda-idoso">Campos preenchidos pelo sistema e siglas do IVCF-20</strong>
+    </span>
+    <span class="guide-toggle-text" aria-hidden="true"></span>
+  </summary>
+  <div class="form-field-guide-body" aria-labelledby="legenda-idoso">
+  <p>Os resultados do IVCF-20 ficam protegidos contra edição manual para preservar a pontuação oficial do instrumento.</p>
+  <div class="guide-list">
+    <div class="guide-item">
+      <strong>Idade</strong>
+      <span>Calculada pela data de nascimento. Também pontua no IVCF-20: 75 a 84 anos soma 1 ponto; 85 anos ou mais soma 3 pontos.</span>
+    </div>
+    <div class="guide-item">
+      <strong>Pontuação IVCF-20</strong>
+      <span>Somada ao salvar conforme idade e itens marcados. AIVD soma no máximo 4 pontos; banho soma 6; os demais domínios somam conforme cognição, humor, mobilidade, comunicação e comorbidades.</span>
+    </div>
+    <div class="guide-item">
+      <strong>Risco clínico-funcional</strong>
+      <span>Classificado pela pontuação total: até 6 pontos é baixo risco; 7 a 14 é risco moderado; 15 ou mais é alto risco de vulnerabilidade clínico-funcional.</span>
+    </div>
+    <div class="guide-item">
+      <strong>Estrato</strong>
+      <span>Definido pela pontuação do IVCF-20: até 6 pontos indica idoso robusto; 7 a 14 indica risco de fragilização; 15 ou mais indica idoso frágil.</span>
+    </div>
+    <div class="guide-item">
+      <strong>AIVD</strong>
+      <span>Atividades Instrumentais da Vida Diária: tarefas mais complexas para manter autonomia, como fazer compras, controlar dinheiro e realizar trabalhos domésticos.</span>
+    </div>
+    <div class="guide-item">
+      <strong>ABVD</strong>
+      <span>Atividades Básicas da Vida Diária: cuidados essenciais do dia a dia, como banho, alimentação, vestir-se e higiene pessoal.</span>
+    </div>
+  </div>
+  </div>
+</details>
 {% endblock %}

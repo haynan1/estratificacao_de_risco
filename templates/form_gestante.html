@@ -79,7 +79,7 @@
         <div class="col-md-2"><label class="form-label">Glicemia capilar</label><input class="form-control" name="glicemia_capilar" value="{{ paciente.glicemia_capilar or '' }}"></div>
         <div class="col-md-2"><label class="form-label">Respiração</label><input class="form-control" type="number" name="respiracao" value="{{ paciente.respiracao or '' }}"></div>
         <div class="col-md-2"><label class="form-label">AFU</label><input class="form-control" type="number" name="afu" value="{{ paciente.afu or '' }}"></div>
-        <div class="col-md-2"><label class="form-label">PA</label><input class="form-control" name="pa" value="{{ paciente.pa or '' }}"></div>
+        <div class="col-md-2"><label class="form-label">PA <span class="text-faint">(ex.: 120/80)</span></label><input class="form-control" name="pa" value="{{ paciente.pa or '' }}" placeholder="120/80" inputmode="numeric" maxlength="7" data-pa-mask></div>
         <div class="col-md-2"><label class="form-label">BCF</label><input class="form-control" type="number" name="bcf" value="{{ paciente.bcf or '' }}"></div>
         <div class="col-md-2"><label class="form-label">Freq. cardíaca</label><input class="form-control" type="number" name="freq_card" value="{{ paciente.freq_card or '' }}"></div>
       </div>
@@ -90,4 +90,43 @@
     <button class="btn btn-primary" type="submit">Salvar</button>
   </div>
 </form>
+
+<details class="form-field-guide">
+  <summary class="form-field-guide-toggle">
+    <span>
+      <span class="guide-kicker">Legenda</span>
+      <strong id="legenda-gestante">Campos preenchidos pelo sistema</strong>
+    </span>
+    <span class="guide-toggle-text" aria-hidden="true"></span>
+  </summary>
+  <div class="form-field-guide-body" aria-labelledby="legenda-gestante">
+  <p>Os campos bloqueados mostram resultados calculados a partir dos dados do pré-natal. Eles não devem ser digitados manualmente.</p>
+  <div class="guide-list">
+    <div class="guide-item">
+      <strong>Idade</strong>
+      <span>Calculada pela data de nascimento. Ao alterar a data, a idade é atualizada automaticamente no formulário e confirmada ao salvar.</span>
+    </div>
+    <div class="guide-item">
+      <strong>IG semanas</strong>
+      <span>Calculada ao salvar. O sistema usa o 1º USG com a IG do 1º USG quando esses dados existem; se não houver, usa a DUM. Mostra a idade gestacional em semanas completas.</span>
+    </div>
+    <div class="guide-item">
+      <strong>Classificação de risco</strong>
+      <span>Definida ao salvar. Considera idade, IMC, critério de risco intermediário, critério de alto risco, HAC descontrole, DM descontrole e demais dados clínicos informados.</span>
+    </div>
+    <div class="guide-item">
+      <strong>IG atual</strong>
+      <span>Gerada ao salvar em semanas e dias. Segue a mesma base da IG semanas: 1º USG + IG do 1º USG quando disponível; caso contrário, DUM.</span>
+    </div>
+    <div class="guide-item">
+      <strong>DPP calculada</strong>
+      <span>Calculada ao salvar pela idade gestacional estimada. Usa 1º USG + IG do 1º USG quando disponível; se não houver, usa a DUM para projetar 280 dias de gestação.</span>
+    </div>
+    <div class="guide-item">
+      <strong>IMC calculado</strong>
+      <span>Calculado ao salvar com peso e estatura informados em Sinais vitais. O resultado também entra na classificação de risco da gestante.</span>
+    </div>
+  </div>
+  </div>
+</details>
 {% endblock %}

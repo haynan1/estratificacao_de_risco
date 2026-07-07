@@ -452,5 +452,37 @@ class TestFindrisc(unittest.TestCase):
         self.assertEqual(d.faixa_findrisc(21), "muito_alto")
 
 
+class TestComparaRisco(unittest.TestCase):
+    """Direção da mudança de estratificação (base do histórico do paciente)."""
+
+    def test_primeira_avaliacao(self):
+        self.assertEqual(d.comparar_risco(None, d.RISCO_ALTO), "inicial")
+        self.assertEqual(d.comparar_risco("", d.RISCO_BAIXO), "inicial")
+
+    def test_reducao_de_risco(self):
+        self.assertEqual(d.comparar_risco(d.RISCO_ALTO, d.RISCO_MEDIO), "desceu")
+        self.assertEqual(d.comparar_risco(d.RISCO_MUITO_ALTO, d.RISCO_ALTO), "desceu")
+
+    def test_aumento_de_risco(self):
+        self.assertEqual(d.comparar_risco(d.RISCO_BAIXO, d.RISCO_ALTO), "subiu")
+        self.assertEqual(d.comparar_risco(d.RISCO_SEM_ADICIONAL, d.RISCO_MODERADO), "subiu")
+
+    def test_mesmo_nivel(self):
+        # Rótulos diferentes, mesma gravidade clínica.
+        self.assertEqual(d.comparar_risco(d.RISCO_MODERADO, d.RISCO_MEDIO), "manteve")
+
+    def test_pendencia_nao_e_comparavel(self):
+        self.assertEqual(d.comparar_risco(d.ERCV_PENDENTE, d.RISCO_MEDIO), "atualizado")
+        self.assertEqual(d.comparar_risco(d.RISCO_MEDIO, d.ERCV_PENDENTE), "atualizado")
+
+    def test_gestante_e_idoso(self):
+        self.assertEqual(d.comparar_risco("ALTO RISCO", "RISCO HABITUAL"), "desceu")
+        self.assertEqual(d.comparar_risco("RISCO HABITUAL", "ALTO RISCO"), "subiu")
+        self.assertEqual(d.comparar_risco(d.IDOSO_FRAGIL, d.IDOSO_ROBUSTO), "desceu")
+        self.assertEqual(
+            d.comparar_risco(d.IDOSO_ROBUSTO, d.IDOSO_RISCO_FRAGILIZACAO), "subiu"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
